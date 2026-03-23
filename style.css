@@ -1,0 +1,394 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+
+:root {
+    --emerald: #10b981;
+    --gold: #f59e0b;
+    --blue: #3b82f6;
+    --rose: #f43f5e;
+    --slate-900: #0f172a;
+    --slate-950: #020617;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Outfit', sans-serif;
+    user-select: none;
+    background-color: var(--slate-950);
+    margin: 0; padding: 0; overflow-x: hidden;
+    height: 100dvh; overflow: hidden;
+}
+
+/* Glass Navbar */
+.glass-navbar {
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Moving Borders */
+.moving-border, .moving-border-gold, .moving-border-blue,
+.moving-border-emerald, .moving-border-silver, .moving-border-bronze {
+    position: relative; overflow: hidden;
+}
+.moving-border::before, .moving-border-gold::before, .moving-border-blue::before,
+.moving-border-emerald::before, .moving-border-silver::before, .moving-border-bronze::before {
+    content: ''; position: absolute; z-index: -2;
+    left: -50%; top: -50%; width: 200%; height: 200%;
+    animation: rotate 5s linear infinite;
+}
+.moving-border::after, .moving-border-gold::after, .moving-border-blue::after,
+.moving-border-emerald::after, .moving-border-silver::after, .moving-border-bronze::after {
+    content: ''; position: absolute; z-index: -1;
+    inset: 1.5px; background: var(--slate-900); border-radius: inherit;
+}
+.moving-border::before        { background: conic-gradient(transparent, var(--emerald), var(--gold), transparent 50%); }
+.moving-border-gold::before   { background: conic-gradient(transparent, var(--gold), #fff7, transparent 40%); }
+.moving-border-blue::before   { background: conic-gradient(transparent, var(--blue), #00f2fe, transparent 50%); }
+.moving-border-emerald::before{ background: conic-gradient(transparent, var(--emerald), #a7f3d0, transparent 50%); }
+.moving-border-silver::before { background: conic-gradient(transparent, #94a3b8, #cbd5e1, transparent 50%); }
+.moving-border-bronze::before { background: conic-gradient(transparent, #b45309, #d97706, transparent 50%); }
+
+@keyframes rotate { 100% { transform: rotate(360deg); } }
+
+/* Animations */
+@keyframes modalPop {
+    0%  { transform: translateY(-20px) scale(0.9); opacity: 0; }
+    100%{ transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes toastPop {
+    0%  { transform: translate(-50%, -30px) scale(0.85); opacity: 0; }
+    100%{ transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+@keyframes fadeInUp {
+    0%  { transform: translateY(15px); opacity: 0; }
+    100%{ transform: translateY(0); opacity: 1; }
+}
+@keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+    70%  { box-shadow: 0 0 0 16px rgba(245,158,11,0); }
+    100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.animate-pop-in { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+#custom-toast.animate-pop-in { animation: toastPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.animate-spin-slow { animation: spin 8s linear infinite; }
+
+/* Scrollbars */
+.custom-scrollbar::-webkit-scrollbar { width: 3px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Bottom Nav Buttons */
+.nav-btn {
+    position: relative; color: #64748b;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    flex: 1; max-width: 64px;
+}
+.nav-btn.active { color: #10b981; transform: translateY(-3px); }
+.nav-btn::after {
+    content: ''; position: absolute; bottom: -6px; left: 50%;
+    transform: translateX(-50%) scaleX(0); width: 12px; height: 2px;
+    background: #10b981; border-radius: 2px;
+    box-shadow: 0 0 10px #10b981; transition: transform 0.3s ease;
+}
+.nav-btn.active::after { transform: translateX(-50%) scaleX(1); }
+.nav-btn.active i { filter: drop-shadow(0 0 5px rgba(16,185,129,0.5)); }
+
+/* HUD Module */
+.hud-module {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Tournament Card */
+.tournament-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1a1040 100%);
+    border: 1px solid rgba(245,158,11,0.15);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.tournament-card-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(ellipse at 20% 20%, rgba(245,158,11,0.08), transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.06), transparent 60%);
+}
+
+/* Countdown Ring */
+.countdown-ring {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 3px solid rgba(245,158,11,0.3);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.4);
+    position: relative;
+}
+.countdown-ring.urgent {
+    border-color: rgba(244,63,94,0.6);
+    animation: pulse-ring 1s infinite;
+}
+.countdown-ring.urgent span { color: #f43f5e; }
+
+.countdown-ring-admin {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    border: 4px solid rgba(245,158,11,0.4);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5);
+}
+.countdown-ring-admin.urgent {
+    border-color: rgba(244,63,94,0.7);
+    animation: pulse-ring 1s infinite;
+}
+
+/* Player Card */
+.player-card {
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+}
+.player-card:active { transform: scale(0.98); }
+
+/* Status Badge */
+.badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 100px;
+    font-size: 8px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.1em;
+}
+.badge-emerald { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.badge-gold    { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+.badge-blue    { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.badge-rose    { background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.3); }
+.badge-slate   { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+
+/* Bid History Item */
+.bid-history-item {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+/* Standings Table */
+.standings-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 36px 36px 36px 36px 48px;
+    gap: 4px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 9px;
+    font-weight: 700;
+}
+.standings-row.header {
+    color: #64748b;
+    font-size: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+}
+.standings-row:last-child { border-bottom: none; }
+
+/* Match Card */
+.match-card {
+    background: rgba(15,23,42,0.7);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+/* Glow effects */
+.glow-gold    { box-shadow: 0 0 20px rgba(245,158,11,0.2), inset 0 0 20px rgba(245,158,11,0.05); }
+.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.2), inset 0 0 20px rgba(16,185,129,0.05); }
+
+/* Bid Live Pulse */
+@keyframes bidPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+.bid-live { animation: bidPulse 1.5s ease-in-out infinite; }
+
+/* Squad Player Row */
+.squad-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+/* Lineup slot */
+.lineup-slot {
+    display: flex; align-items: center; gap-3 gap;
+    padding: 8px 12px;
+    background: rgba(16,185,129,0.05);
+    border: 1px dashed rgba(16,185,129,0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.lineup-slot.filled {
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+}
+
+/* Admin pending card */
+.pending-item {
+padding: 12px 16px;
+display: flex; align-items: center; gap-3 gap;
+    transition: background 0.2s;
+}
+.pending-item:hover { background: rgba(255,255,255,0.02); }
+
+/* --- Premium Accordion Smooth Dropdown --- */
+.accordion-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.accordion-content.expanded {
+    grid-template-rows: 1fr;
+}
+.accordion-inner {
+    overflow: hidden;
+}
+/* --- Dynamic Island Header Styling --- */
+.dynamic-island-header {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.5rem;
+    padding: 10px 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    width: 100%;
+}
+/* --- Dynamic Island Nav Styling --- */
+.dynamic-island-nav {
+    position: fixed;
+    bottom: 24px; /* Floating from bottom */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 400px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 2rem;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
+                inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    z-index: 1000;
+}
+
+.nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 1.2rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #94a3b8; /* Slate-400 */
+    text-decoration: none;
+    flex: 1;
+}
+
+.nav-item i {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 4px;
+    transition: transform 0.3s ease;
+}
+
+.nav-item span {
+    font-size: 7px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+}
+
+/* Active State */
+.nav-item.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item.active i {
+    transform: translateY(-2px);
+    color: #34d399; /* Emerald 400 */
+    filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.4));
+}
+
+.nav-item.active span {
+    opacity: 1;
+    color: #34d399;
+}
+
+/* Tap Feedback */
+.nav-item:active {
+    transform: scale(0.9);
+}
+
+/* Indicator Dot */
+.nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    background: #34d399;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #34d399;
+}
+
+/* --- Premium Bidding Card Styles --- */
+.premium-bid-card {
+    background: linear-gradient(145deg, rgba(15,23,42,0.6) 0%, rgba(2,6,23,0.8) 100%);
+    border-radius: 1.5rem;
+    border: 4px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 1. Running Bidding State (Gold pulsing border) */
+.bid-status-running {
+    border-color: rgba(245, 158, 11, 0.8);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), inset 0 0 15px rgba(245, 158, 11, 0.1);
+    animation: pulse-running-border 1.2s infinite alternate;
+}
+
+/* 2. Successfully Sold State (Green heavy glow) */
+.bid-status-sold {
+    border-color: #10b981;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+/* 3. Skipped / Unsold State (Red heavy glow) */
+.bid-status-skipped {
+    border-color: #f43f5e;
+    box-shadow: 0 0 30px rgba(244, 63, 94, 0.6), inset 0 0 20px rgba(244, 63, 94, 0.3);
+}
+
+@keyframes pulse-running-border {
+    0% { 
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.3), inset 0 0 5px rgba(245, 158, 11, 0.2); 
+        border-color: rgba(245, 158, 11, 0.6);
+    }
+    100% { 
+        box-shadow: 0 0 25px rgba(245, 158, 11, 0.8), inset 0 0 15px rgba(245, 158, 11, 0.5); 
+        border-color: #f59e0b;
+    }
+}
