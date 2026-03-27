@@ -194,7 +194,7 @@
                             <span class="text-[8px] text-slate-400 font-bold uppercase">Payment</span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-sm font-black text-white">৳50</span>
+                            <span class="text-sm font-black text-white">৳30</span>
                             <span class="text-[9px] text-emerald-400 font-bold">Bkash / Nagad</span>
                         </div>
                     </div>
@@ -706,6 +706,13 @@
                         <input type="number" id="a-base-bid" class="w-20 p-2 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-gold-500 text-center" placeholder="50">
                         <button onclick="saveSettings('baseBid')" class="px-3 py-2 bg-gold-500/20 border border-gold-500/30 text-gold-400 text-[8px] font-black rounded-xl">Set</button>
                     </div>
+                    <!-- Bidding Phase Toggle -->
+<div class="flex items-center gap-3 pt-3 mt-3 border-t border-white/5">
+    <label class="text-[8px] text-slate-400 font-bold uppercase tracking-widest flex-1">Bidding Phase Visibility</label>
+    <button id="a-toggle-bidding-btn" onclick="toggleBiddingPhase()" class="px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all">
+        <i data-lucide="eye" class="w-4 h-4"></i> Loading...
+    </button>
+</div>
                 </div>
             </div>
 
@@ -714,9 +721,9 @@
     <button onclick="startBiddingSession()" class="py-4 bg-gradient-to-br from-rose-600/30 to-rose-800/20 border border-rose-500/30 rounded-2xl text-rose-400 font-black text-[9px] uppercase tracking-widest flex flex-col items-center gap-2 shadow-inner hover:bg-rose-800/30 transition-all">
         <i data-lucide="zap" class="w-5 h-5"></i>Start Bidding
     </button>
-    <button onclick="generateMatches()" class="py-4 bg-gradient-to-br from-blue-600/30 to-blue-800/20 border border-blue-500/30 rounded-2xl text-blue-400 font-black text-[9px] uppercase tracking-widest flex flex-col items-center gap-2 shadow-inner hover:bg-blue-800/30 transition-all">
-        <i data-lucide="shuffle" class="w-5 h-5"></i>Draw Matches
-    </button>
+<button id="btn-draw-matches" onclick="generateMatches()" class="py-4 bg-gradient-to-br from-blue-600/30 to-blue-800/20 border border-blue-500/30 rounded-2xl text-blue-400 font-black text-[9px] uppercase tracking-widest flex flex-col items-center gap-2 shadow-inner hover:bg-blue-800/30 transition-all">
+    <i data-lucide="shuffle" class="w-5 h-5"></i>Draw Matches
+</button>
     <button onclick="openDraftReport()" class="col-span-2 py-4 bg-gradient-to-br from-emerald-600/30 to-emerald-800/20 border border-emerald-500/30 rounded-2xl text-emerald-400 font-black text-[9px] uppercase tracking-widest flex flex-col items-center gap-2 shadow-inner hover:bg-emerald-800/30 transition-all active:scale-95">
         <i data-lucide="file-text" class="w-5 h-5"></i>View Draft Report
     </button>
@@ -1049,7 +1056,8 @@
 </div>
 
 <!-- Confirm Modal -->
-<div id="modal-confirm" class="fixed inset-0 z-[1100] bg-slate-950/90 hidden flex items-center justify-center p-4 backdrop-blur-md">
+<!-- Confirm Modal -->
+<div id="modal-confirm" class="fixed inset-0 z-[2500] bg-slate-950/90 hidden flex items-center justify-center p-4 backdrop-blur-md">
     <div class="moving-border rounded-[2.5rem] p-[1.5px] w-full max-w-xs animate-pop-in">
         <div class="bg-slate-900 rounded-[2.4rem] p-8 text-center border border-white/5">
             <i data-lucide="help-circle" class="w-8 h-8 text-emerald-400 mx-auto mb-4"></i>
@@ -1115,7 +1123,17 @@
         </div>
     </div>
 </div>
-
+<!-- Lineup Preview Modal (Screenshot Friendly) -->
+<div id="modal-lineup-preview" class="fixed inset-0 z-[2000] bg-[#020617] hidden flex-col overflow-y-auto custom-scrollbar">
+    <div class="sticky top-0 w-full flex justify-end p-4 z-50 pointer-events-none">
+        <button onclick="closeModal('modal-lineup-preview')" class="pointer-events-auto bg-rose-500/20 text-rose-400 p-2 rounded-full border border-rose-500/50 hover:bg-rose-500/40 active:scale-95 transition-all shadow-lg backdrop-blur-md">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+    </div>
+    <div id="lineup-preview-wrapper" class="relative w-full max-w-md mx-auto min-h-screen flex flex-col items-center px-4 pb-10 pt-2 -mt-16 overflow-hidden">
+        <!-- Dynamic Content Injected Here -->
+    </div>
+</div>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
