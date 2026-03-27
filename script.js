@@ -39,6 +39,36 @@ let confirmCallback = null;
 let unsubscribers = [];
 let paymentContext = null; // 'player' | 'manager'
 
+// ==================== KONAMI ID VALIDATION ====================
+function cleanKonamiId(idStr) {
+    // শুধু নাম্বার (0-9) রেখে বাকি সব (অক্ষর, হাইফেন, স্পেস) রিমুভ করে দিবে
+    return (idStr || '').replace(/\D/g, '');
+}
+
+async function checkDuplicateKonami(newKonami, excludePlayerId = null) {
+    const numericKonami = cleanKonamiId(newKonami);
+    
+    if (numericKonami.length < 9) {
+        return { error: 'Invalid Konami ID! Minimum 9 digits required.' };
+    }
+    
+    try {
+        const snap = await db.collection('players').get();
+        for (let doc of snap.docs) {
+            const p = doc.data();
+            // এডিট করার সময় নিজের আইডি স্কিপ করবে
+            if (excludePlayerId && p.id === excludePlayerId) continue;
+            
+            if (cleanKonamiId(p.konamiId) === numericKonami) {
+                return { error: `This Konami ID is already registered by ${p.name}!` };
+            }
+        }
+        return { error: null };
+    } catch (e) {
+        return { error: 'Failed to verify Konami ID. Try again.' };
+    }
+}
+// =============================================================
 // ==================== UTILS ====================
 function toggleBtnLoading(isLoading, btn) {
     if (!btn) return;
@@ -164,12 +194,17 @@ async function registerPlayer() {
     const konamiId = document.getElementById('p-konami').value.trim();
     const deviceName = document.getElementById('p-device').value.trim();
     
-    if (!name || !phone || !konamiId || !deviceName) return notify('Name, Phone, Konami ID & Device required!', 'alert-circle');
+if (!name || !phone || !konamiId || !deviceName) return notify('Name, Phone, Konami ID & Device required!', 'alert-circle');
 
-    toggleBtnLoading(true, btn);
+toggleBtnLoading(true, btn);
+const konamiCheck = await checkDuplicateKonami(konamiId);
+if (konamiCheck.error) {
+    toggleBtnLoading(false, btn);
+    return notify(konamiCheck.error, 'alert-circle');
+}
 
-    let pid;
-    let unique = false;
+let pid;
+let unique = false;
     while (!unique) {
         pid = generatePlayerId();
         const snap = await db.collection('players').doc(pid).get();
@@ -238,9 +273,14 @@ async function registerManager() {
     const konamiId = document.getElementById('m-konami').value.trim();
     const deviceName = document.getElementById('m-device').value.trim();
     
-    if (!teamName || !ownerName || !phone || !konamiId || !deviceName) return notify('All fields including Konami & Device required!', 'alert-circle');
+if (!teamName || !ownerName || !phone || !konamiId || !deviceName) return notify('All fields including Konami & Device required!', 'alert-circle');
 
     toggleBtnLoading(true, btn);
+    const konamiCheck = await checkDuplicateKonami(konamiId);
+    if (konamiCheck.error) {
+        toggleBtnLoading(false, btn);
+        return notify(konamiCheck.error, 'alert-circle');
+    }
 
     let mid, pid;
     let uniqueM = false, uniqueP = false;
@@ -3487,42 +3527,6 @@ function generatePlayerProfileStatsHtml(playerId) {
         </div>
     </div>
     `;
-
-    if (stats.history.length > 0) {
-        html += `
-        <div class="mt-3">
-            <span class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 block pl-1">Match History</span>
-            <div class="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
-        `;
-        stats.history.slice().reverse().forEach(h => {
-            let resColor = h.myScore > h.oppScore ? 'text-emerald-400' : (h.myScore === h.oppScore ? 'text-slate-300' : 'text-rose-400');
-            let resLetter = h.myScore > h.oppScore ? 'W' : (h.myScore === h.oppScore ? 'D' : 'L');
-            let resBg = h.myScore > h.oppScore ? 'bg-emerald-500/10 border-emerald-500/20' : (h.myScore === h.oppScore ? 'bg-slate-500/20 border-slate-500/30' : 'bg-rose-500/10 border-rose-500/20');
-
-            html += `
-            <div class="flex items-center justify-between p-2 bg-black/40 border border-white/5 rounded-lg shadow-sm">
-                <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <div class="w-6 h-6 flex items-center justify-center rounded-md ${resBg} border flex-shrink-0">
-                        <span class="text-[10px] font-black ${resColor}">${resLetter}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[9px] font-black text-white uppercase truncate flex items-center gap-1.5">
-                            VS ${h.oppName} <span class="text-[6px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 font-bold">${h.oppTeamName}</span>
-                        </div>
-                        <div class="text-[7px] text-slate-500 font-bold mt-0.5 truncate flex items-center gap-1"><i data-lucide="clock" class="w-2.5 h-2.5"></i> ${h.matchDate}</div>
-                    </div>
-                </div>
-                <div class="text-[12px] font-black ${resColor} tracking-widest pl-2 flex-shrink-0">
-                    ${h.myScore} - ${h.oppScore}
-                </div>
-            </div>
-            `;
-        });
-        html += `</div></div>`;
-    } else {
-        html += `<div class="mt-3 text-[8px] text-slate-500 font-bold italic text-center bg-black/30 py-3 rounded-lg border border-white/5">No matches played yet</div>`;
-    }
-
     return html;
 }
 function playerInfoCard(p, isTeam = false, forceExpand = false) {
@@ -3569,6 +3573,17 @@ function playerInfoCard(p, isTeam = false, forceExpand = false) {
                             </span> 
                             <span class="text-[10px] font-black text-blue-400 tracking-wider break-all">${p.deviceName || '<span class="text-slate-700">N/A</span>'}</span>
                         </div> 
+
+                        <!-- Phone Number Section with Copy Button -->
+                        <div class="relative z-10 col-span-2 mt-1 pt-2 border-t border-white/5 flex items-center justify-between">
+                            <div>
+                                <span class="text-[7px] text-slate-500 font-bold uppercase tracking-widest block mb-0.5 flex items-center gap-1">
+                                    <i data-lucide="phone" class="w-2.5 h-2.5 text-rose-400"></i> Phone Number
+                                </span> 
+                                <span class="text-[11px] font-black text-white tracking-wider">${p.phone || '<span class="text-slate-700">N/A</span>'}</span>
+                            </div>
+                            ${p.phone ? `<button onclick="navigator.clipboard.writeText('${p.phone}').then(() => notify('Phone Number Copied!', 'copy'))" class="w-7 h-7 bg-black/40 border border-white/10 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/50 transition-all active:scale-90 shadow-sm" title="Copy Number"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>` : ''}
+                        </div>
                         </div>
                         ${ editedTxt }
 ${ generatePlayerProfileStatsHtml(p.id)}
@@ -3615,11 +3630,17 @@ async function saveProfileEdit() {
         return notify('Name, Phone, Konami & Device are required!', 'alert-circle');
     }
     
-    const u = state.currentUser;
-    const playerId = state.role === 'manager' ? u.managerPlayerId : u.id;
-    
-    toggleBtnLoading(true, btn);
-    try {
+const u = state.currentUser;
+const playerId = state.role === 'manager' ? u.managerPlayerId : u.id;
+
+toggleBtnLoading(true, btn);
+const konamiCheck = await checkDuplicateKonami(konamiId, playerId);
+if (konamiCheck.error) {
+    toggleBtnLoading(false, btn);
+    return notify(konamiCheck.error, 'alert-circle');
+}
+
+try {
         // ফায়ারবেস ডেটাবেসে প্লেয়ারের প্রোফাইল আপডেট
         await db.collection('players').doc(playerId).update({
             name: name,
