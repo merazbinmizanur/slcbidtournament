@@ -450,7 +450,7 @@ function launchPlayerApp() {
 }
 
 function switchPTab(tab) {
-    const tabs = ['home', 'bid', 'teams', 'schedule','profile', 'info'];
+    const tabs =['home', 'bid', 'teams', 'schedule','profile', 'info', 'rules'];
     
     tabs.forEach(t => {
         const contentSection = document.getElementById(`p-tab-${t}`);
@@ -477,6 +477,9 @@ function switchPTab(tab) {
             break;
             case 'info':
             renderInfoTab('p-info-container', document.getElementById('p-info-search').value);
+            break;
+            case 'rules':
+            renderRulesTab('p-tab-rules');
             break;
         case 'bid':
             if (typeof renderBidHistory === 'function') renderBidHistory();
@@ -557,7 +560,7 @@ function renderPlayersList() {
         ${getAvatarUI(p, 'w-9', 'h-9', 'rounded-lg flex-shrink-0 shadow-md border border-white/10 relative z-10')}
         
         <div class="flex-1 min-w-0 relative z-10">
-            <div class="text-[10px] font-black text-white truncate uppercase tracking-wider">${p.name}</div>
+<div class="text-[10px] font-black text-white truncate uppercase tracking-wider flex items-center gap-1">${p.name} ${getDisciplineBadge(p)}</div>
             <div class="text-[8px] text-emerald-400 font-bold tracking-widest mt-0.5">${p.serialNumber || 'Pending'}</div>
         </div>
         
@@ -593,7 +596,7 @@ function openAllPlayersModal() {
         ${getAvatarUI(p, 'w-11', 'h-11', 'rounded-[0.9rem] flex-shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.15)] border border-emerald-500/20 relative z-10 object-cover')}
         
         <div class="flex-1 min-w-0 relative z-10">
-            <div class="text-[11px] font-black text-white truncate uppercase tracking-wider">${p.name}</div>
+<div class="text-[11px] font-black text-white truncate uppercase tracking-wider flex items-center gap-1">${p.name} ${getDisciplineBadge(p)}</div>
             <div class="text-[8px] text-emerald-400 font-bold tracking-widest mt-1">${p.serialNumber || 'Pending Serial'}</div>
         </div>
         
@@ -822,7 +825,7 @@ function launchManagerApp() {
 }
 
 function switchMTab(tab) {
-    ['dashboard','squad','matches','standings','profile','info'].forEach(t => {
+['dashboard','squad','matches','standings','profile','info','rules'].forEach(t => {
         document.getElementById(`m-tab-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`mnav-${t}`);
         if (btn) btn.classList.toggle('active', t === tab);
@@ -832,6 +835,7 @@ function switchMTab(tab) {
     if (tab === 'matches') renderManagerMatches();
     if (tab === 'standings') renderStandings('m-standings-table');
     if (tab === 'profile') renderManagerProfile();
+    if (tab === 'rules') renderRulesTab('m-tab-rules');
     if (tab === 'info') renderInfoTab('m-info-container', document.getElementById('m-info-search').value);
     lucide.createIcons();
 }
@@ -932,7 +936,7 @@ function renderManagerSquad() {
         ${getAvatarUI(p, 'w-14', 'h-14', 'rounded-[1rem] shadow-[0_4px_15px_rgba(0,0,0,0.5)] border-2 border-white/10 mb-3 object-cover relative z-10')}
         
         <div class="w-full relative z-10 mb-2">
-            <div class="text-[11px] font-black text-white truncate uppercase tracking-wider">${p.name}</div>
+            <div class="text-[11px] font-black text-white truncate uppercase tracking-wider flex items-center justify-center gap-1">${p.name} ${getDisciplineBadge(p)}</div>
             <div class="text-[8px] text-emerald-400 font-bold tracking-widest mt-1">${p.serialNumber||'--'}</div>
         </div>
         
@@ -967,7 +971,7 @@ function renderLineupArea(squad) {
                 ${getAvatarUI(p, 'w-11', 'h-11', 'rounded-[0.8rem] flex-shrink-0 border-2 border-emerald-500/20 object-cover shadow-md')}
                 
                 <div class="flex-1 min-w-0">
-                    <div class="text-[11px] font-black text-white truncate uppercase tracking-widest">${p.name}</div>
+<div class="text-[11px] font-black text-white truncate uppercase tracking-widest flex items-center gap-1">${p.name} ${getDisciplineBadge(p)}</div>
                     <div class="text-[8px] text-slate-400 font-bold flex items-center gap-1.5 mt-1 tracking-widest">
                         <i data-lucide="gamepad-2" class="w-3 h-3 text-emerald-400"></i> ${p.konamiId || 'NO ID'}
                     </div>
@@ -1543,20 +1547,27 @@ function openLineupSubmission(matchId) {
     <div class="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 pb-2">`;
     
 myPlayers.forEach(p => {
+    const isSuspended = isPlayerSuspended(p);
+    const disabledClass = isSuspended ? 'opacity-40 cursor-not-allowed grayscale' : 'cursor-pointer hover:border-emerald-500/50 group';
+    
     html += `
-        <label id="label-lineup-${p.id}" class="flex items-center justify-between p-3 bg-slate-900 border border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all group shadow-sm">
+        <label id="label-lineup-${p.id}" class="flex items-center justify-between p-3 bg-slate-900 border border-white/10 rounded-xl transition-all shadow-sm ${disabledClass}">
             <div class="flex items-center gap-3">
                 ${getAvatarUI(p, 'w-10', 'h-10', 'rounded-lg border border-white/10 shadow-md')}
                 <div>
-                    <div class="text-[11px] font-black text-white uppercase tracking-wider player-name-label" data-name="${p.name}">${p.name}</div>
+                    <div class="text-[11px] font-black text-white uppercase tracking-wider player-name-label flex items-center gap-1" data-name="${p.name}">
+                        ${p.name} ${getDisciplineBadge(p)}
+                        ${isSuspended ? '<span class="text-[7px] text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded tracking-widest ml-1">SUSPENDED</span>' : ''}
+                    </div>
                     <div class="text-[8px] text-slate-400 font-bold tracking-widest mt-0.5 flex items-center gap-1">
                         <i data-lucide="gamepad-2" class="w-2.5 h-2.5 text-emerald-500"></i> ${p.konamiId || 'N/A'}
                     </div>
                 </div>
             </div>
-            <div class="relative flex items-center justify-center w-6 h-6 rounded-md border border-white/20 bg-slate-950 group-hover:border-emerald-500 transition-colors">
-                <input type="checkbox" name="lineup-select" value="${p.id}" class="absolute opacity-0 w-full h-full cursor-pointer" onchange="toggleLineupSelection(this, '${p.id}', ${limit})">
+            <div class="relative flex items-center justify-center w-6 h-6 rounded-md border border-white/20 bg-slate-950 ${!isSuspended ? 'group-hover:border-emerald-500' : ''} transition-colors">
+                <input type="checkbox" name="lineup-select" value="${p.id}" class="absolute opacity-0 w-full h-full ${isSuspended ? 'hidden' : 'cursor-pointer'}" ${isSuspended ? 'disabled' : ''} onchange="toggleLineupSelection(this, '${p.id}', ${limit})">
                 <i data-lucide="check" id="check-${p.id}" class="w-4 h-4 text-emerald-400 opacity-0 transition-opacity"></i>
+                ${isSuspended ? '<i data-lucide="lock" class="w-3 h-3 text-rose-500 absolute"></i>' : ''}
             </div>
         </label>`;
 });
@@ -3033,21 +3044,43 @@ if (sellBtn) {
 
 function renderAdminPlayers() {
     const list = document.getElementById('a-players-list');
-    if (!state.players.length) { list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No players registered</p>`; return; }
+    if (!state.players.length) {
+        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No players registered</p>`;
+        return;
+    }
+    
     list.innerHTML = state.players.map(p => `
-    <div class="player-card flex items-center gap-3 p-3">
+    <div class="player-card flex items-center gap-3 p-3 relative overflow-hidden">
+        <!-- Suspended Player Indicator -->
+        ${isPlayerSuspended(p) ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]"></div>' : ''}
+        
         ${getAvatarUI(p, 'w-10', 'h-10', 'rounded-xl flex-shrink-0')}
+        
         <div class="flex-1 min-w-0">
-            <div class="text-[10px] font-black text-white truncate uppercase">${p.name}</div>
+            <!-- Name & Discipline Badge -->
+            <div class="text-[10px] font-black text-white truncate uppercase flex items-center gap-1">
+                ${p.name} ${getDisciplineBadge(p)}
+            </div>
             <div class="text-[7px] text-slate-500 font-bold">${p.id}</div>
             <div class="text-[8px] text-emerald-400 font-bold">${p.serialNumber || ''}</div>
         </div>
-        <div class="flex flex-col items-end gap-1">
-            <span class="badge ${p.paymentStatus==='approved'?'badge-emerald':p.paymentStatus==='pending'?'badge-gold':'badge-slate'}">${p.paymentStatus||'none'}</span>
+        
+        <div class="flex flex-col items-end gap-1 mr-2">
+            <span class="badge ${p.paymentStatus === 'approved' ? 'badge-emerald' : p.paymentStatus === 'pending' ? 'badge-gold' : 'badge-slate'}">${p.paymentStatus || 'none'}</span>
             ${p.teamId ? `<span class="badge badge-blue">${getTeamName(p.teamId)}</span>` : ''}
         </div>
-        <button onclick="deletePlayer('${p.id}')" class="text-slate-600 hover:text-rose-400 ml-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        
+        <!-- Action Buttons (Discipline & Delete) -->
+        <div class="flex flex-col gap-1 border-l border-white/10 pl-2">
+            <button onclick="openDisciplineModal('${p.id}')" class="text-slate-400 hover:text-yellow-400 bg-black/40 p-1.5 rounded-lg border border-white/5 transition-colors shadow-inner" title="Discipline Action">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deletePlayer('${p.id}')" class="text-slate-400 hover:text-rose-400 bg-black/40 p-1.5 rounded-lg border border-white/5 transition-colors shadow-inner" title="Delete Player">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
     </div>`).join('');
+    
     lucide.createIcons();
 }
 
@@ -3542,8 +3575,8 @@ function playerInfoCard(p, isTeam = false, forceExpand = false) {
             ${getAvatarUI(p, 'w-10', 'h-10', 'rounded-lg flex-shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.5)]')}
             <div class="flex-1 min-w-0">
                 <div class="text-[11px] font-black text-white truncate uppercase tracking-wider flex items-center gap-1.5">
-                    ${p.name}
-                    ${isTeam && p.isManager ? '<span class="text-[6px] font-black uppercase text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">MGR</span>' : ''}
+${ p.name } ${ getDisciplineBadge(p) }
+${ isTeam && p.isManager ? '<span class="text-[6px] font-black uppercase text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">MGR</span>' : '' }
                 </div>
                 <div class="text-[8px] text-emerald-400 font-bold mt-0.5">${p.serialNumber || 'Pending Serial'}</div>
             </div>
@@ -4007,7 +4040,7 @@ function openLineupPreview(matchId) {
                 <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                 ${getAvatarUI(p1, 'w-10', 'h-10', 'rounded-xl border border-blue-500/40 object-cover flex-shrink-0 shadow-md bg-slate-800')}
                 <div class="flex-1 min-w-0">
-                    <div class="text-[10px] font-black text-white uppercase truncate tracking-wide">${p1?.name || 'Pending'}</div>
+<div class="text-[10px] font-black text-white uppercase truncate tracking-wide flex items-center gap-1">${p1?.name || 'Pending'} ${getDisciplineBadge(p1)}</div>
                     <div class="text-[7px] text-blue-300 font-bold truncate mt-0.5 tracking-widest flex items-center gap-1"><i data-lucide="gamepad-2" class="w-2 h-2"></i> ${p1?.konamiId || 'N/A'}</div>
                 </div>
             </div>
@@ -4022,7 +4055,7 @@ function openLineupPreview(matchId) {
                 <div class="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
                 ${getAvatarUI(p2, 'w-10', 'h-10', 'rounded-xl border border-emerald-500/40 object-cover flex-shrink-0 shadow-md bg-slate-800')}
                 <div class="flex-1 min-w-0">
-                    <div class="text-[10px] font-black text-white uppercase truncate tracking-wide">${p2?.name || 'Pending'}</div>
+<div class="text-[10px] font-black text-white uppercase truncate tracking-wide flex items-center justify-end gap-1">${getDisciplineBadge(p2)} ${p2?.name || 'Pending'}</div>
                     <div class="text-[7px] text-emerald-300 font-bold truncate mt-0.5 tracking-widest flex items-center justify-end gap-1">${p2?.konamiId || 'N/A'} <i data-lucide="gamepad-2" class="w-2 h-2"></i></div>
                 </div>
             </div>
@@ -4163,7 +4196,7 @@ function openMatchResultPreview(matchId) {
             <!-- Player 1 Side -->
             <div class="flex items-center gap-2 w-[38%]">
                 ${getAvatarUI(p1, 'w-8', 'h-8', 'rounded-lg border border-white/10 object-cover flex-shrink-0 bg-slate-800')}
-                <div class="text-[9px] font-black text-white uppercase truncate tracking-wide">${p1?.name || '--'}</div>
+<div class="text-[9px] font-black text-white uppercase truncate tracking-wide flex items-center gap-1">${p1?.name || '--'} ${getDisciplineBadge(p1)}</div>
             </div>
             
             <!-- Scores -->
@@ -4175,7 +4208,7 @@ function openMatchResultPreview(matchId) {
 
             <!-- Player 2 Side -->
             <div class="flex items-center justify-end gap-2 w-[38%] text-right">
-                <div class="text-[9px] font-black text-white uppercase truncate tracking-wide">${p2?.name || '--'}</div>
+<div class="text-[9px] font-black text-white uppercase truncate tracking-wide flex items-center justify-end gap-1">${getDisciplineBadge(p2)} ${p2?.name || '--'}</div>
                 ${getAvatarUI(p2, 'w-8', 'h-8', 'rounded-lg border border-white/10 object-cover flex-shrink-0 bg-slate-800')}
             </div>
         </div>`;
@@ -4215,4 +4248,251 @@ function openMatchResultPreview(matchId) {
     document.getElementById('lineup-preview-wrapper').innerHTML = html;
     openModal('modal-lineup-preview');
     lucide.createIcons();
+}
+
+// ==================== RULES TAB & LANGUAGE TOGGLE ====================
+
+let currentRulesLang = 'bn'; // Default language is Bengali
+
+function toggleRulesLang(containerId) {
+    currentRulesLang = currentRulesLang === 'bn' ? 'en' : 'bn';
+    renderRulesTab(containerId);
+}
+
+function renderRulesTab(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const isBn = currentRulesLang === 'bn';
+    
+    // Content Database (Bilingual)
+    const texts = {
+        header: isBn ? "অফিসিয়াল রুলস বুক" : "Official Rules Book",
+        subHeader: isBn ? "টুর্নামেন্টের নিয়মাবলী ও নির্দেশিকা" : "Tournament Guidelines & Regulations",
+        bookIntro: isBn ? "সম্পূর্ণ টুর্নামেন্টটি SYNTHEX LEGION CHRONICLES ক্লাবের RULES BOOK অনুসারে পরিচালিত হবে।" : "The entire tournament will be conducted according to the SYNTHEX LEGION CHRONICLES RULES BOOK.",
+        bookLink: "অফিসিয়াল রুলস বুক পড়ুন",
+        
+        rule1Title: isBn ? "টুর্নামেন্ট ফরম্যাট" : "Tournament Format",
+        rule1Desc: isBn ? "প্রতিটি দল একে অপরের সাথে দুটি করে ম্যাচ খেলবে (HOME এবং AWAY)। গ্রুপ পর্ব শেষে পয়েন্ট টেবিলের শীর্ষ ৪টি দল কোয়ালিফাই করবে।<br><br><span class='text-emerald-400'>১ম ও ২য় দল</span> খেলবে <b>QUALIFIER 1</b>, এবং <span class='text-rose-400'>৩য় ও ৪র্থ দল</span> খেলবে <b>ELIMINATOR</b> রাউন্ড।<br><br>• QUALIFIER 1 বিজয়ী দল সরাসরি ফাইনালে যাবে।<br>• পরাজিত দল ELIMINATOR জয়ীর সাথে QUALIFIER 2 খেলবে।<br>• ELIMINATOR এ হেরে যাওয়া দল টুর্নামেন্ট থেকে বাতিল হবে।<br>• QUALIFIER 2 বিজয়ী দল ফাইনালে যাবে।" : "Each team will play two matches against each other (HOME and AWAY). After the group stage, the top 4 teams on the points table will qualify.<br><br><span class='text-emerald-400'>1st & 2nd</span> will play <b>QUALIFIER 1</b>, and <span class='text-rose-400'>3rd & 4th</span> will play the <b>ELIMINATOR</b>.<br><br>• QUALIFIER 1 winner advances directly to the Final.<br>• The loser plays the ELIMINATOR winner in QUALIFIER 2.<br>• The ELIMINATOR loser is directly eliminated.<br>• QUALIFIER 2 winner advances to the Final.",
+        
+        rule2Title: isBn ? "রেজিস্ট্রেশন ফি" : "Registration Fees",
+        rule2Desc: isBn ? "SLC BID TOURNAMENT - S14 এ প্লেয়ার রেজিস্ট্রেশন ফি <b>৳৩০</b> এবং ম্যানেজার ফি <b>৳১০০</b>।<br><br>ওয়েবসাইটে ঢুকে প্রদত্ত ফিস জমা দিয়ে আপনার রেজিস্ট্রেশন সম্পন্ন করতে হবে। বিকাশ অথবা নগদের মাধ্যমে সেন্ড মানি করে TRXID টি প্রদত্ত বক্সে সাবমিট করলেই রেজিস্ট্রেশন সম্পন্ন হবে। অন্যথায় আপনার রেজিস্ট্রেশন অসম্পূর্ণ থেকে যাবে এবং আপনি টুর্নামেন্টে অংশগ্রহণ করতে পারবেন না।" : "For SLC BID TOURNAMENT - S14, the Player registration fee is <b>৳30</b> and the Manager fee is <b>৳100</b>.<br><br>Fees must be paid via bKash or Nagad (Send Money) and the TRXID must be submitted in the provided box on the website. Without fee payment, your registration will remain incomplete and participation will be denied.",
+        
+        rule3Title: isBn ? "বেইজ প্রাইস (Base Price)" : "Base Price",
+        rule3Desc: isBn ? "LIVE BIDDING এর সময় প্রতিটি নিবন্ধিত খেলোয়াড়ের বেইস প্রাইস বা ভিত্তি মূল্য শুরু হবে <b>৳৫০</b> থেকে। সুতরাং, আপনি মাত্র ৳৩০ দিয়ে রেজিস্ট্রেশন করে সর্বনিম্ন ৳৫০ বেইস প্রাইস পাচ্ছেন।" : "During LIVE BIDDING, the base price for every registered player will start at <b>৳50</b>. This means by registering for only ৳30, you automatically secure a minimum base price of ৳50.",
+        
+        rule4Title: isBn ? "প্রাইস শেয়ারিং (Percentage)" : "Price Sharing (Percentage)",
+        rule4Desc: isBn ? "নিলামে বিক্রি হওয়া মূল্যের <b>৭০%</b> পাবেন খেলোয়াড় নিজে এবং বাকি <b>৩০%</b> ক্লাব পাবে (ক্লাব এই ৩০% টাকা মোট প্রাইস মানিতে যুক্ত করে দিবে)।<br><br><span class='text-gold-400'>উদাহরণ:</span> কোনো খেলোয়াড়ের দাম ১০০ টাকা হলে, উক্ত খেলোয়াড় পাবেন ৭০ টাকা আর ক্লাব পাবে ৩০ টাকা।" : "From the final auction price, the player will receive <b>70%</b> and the club will retain <b>30%</b> (which will be added to the overall prize pool).<br><br><span class='text-gold-400'>Example:</span> If a player is sold for ৳100, the player receives ৳70 and the club receives ৳30.",
+        
+        rule5Title: isBn ? "শৃঙ্খলা ও রেফারি" : "Disciplinary & Refereeing",
+        rule5Desc: isBn ? "ম্যাচ রেফারির সিদ্ধান্তই চূড়ান্ত বলে গণ্য হবে।<br><br>কোনো খেলোয়াড় কোনো ম্যাচে <b>রেড কার্ড (Red Card)</b> দেখলে, উক্ত ম্যাচে প্রতিপক্ষ দল অটোমেটিক <b>১-০</b> গোলে জয়লাভ করবে। এবং রেড কার্ড দেখা খেলোয়াড় পরবর্তী ম্যাচের জন্য সাসপেন্ড থাকবেন।" : "The Match Referee's decision will be considered absolute and final.<br><br>If a player receives a <b>Red Card</b> in any match, the opponent team will automatically be awarded a <b>1-0</b> victory for that match. Additionally, the red-carded player will be suspended for the next match."
+    };
+    
+    const html = `
+    <!-- Premium Header Area with Language Toggle -->
+    <div class="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-transparent border border-white/10 rounded-[1.5rem] p-5 mb-5 relative overflow-hidden shadow-lg flex items-center justify-between">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+        <div class="relative z-10 flex-1">
+            <h2 class="text-[16px] font-black text-white uppercase italic tracking-tight">${texts.header}</h2>
+            <p class="text-[8px] text-emerald-400 font-bold uppercase tracking-widest mt-1">${texts.subHeader}</p>
+        </div>
+        
+        <!-- Language Switcher -->
+        <button onclick="toggleRulesLang('${containerId}')" class="relative z-10 flex items-center bg-black/50 border border-white/10 rounded-xl p-1 shadow-inner cursor-pointer hover:border-gold-500/50 transition-all active:scale-95 flex-shrink-0">
+            <div class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-colors ${isBn ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md' : 'text-slate-500'}">বাংলা</div>
+            <div class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-colors ${!isBn ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md' : 'text-slate-500'}">EN</div>
+        </button>
+        <i data-lucide="book-open" class="absolute -right-2 -bottom-4 w-24 h-24 text-white/5 pointer-events-none z-0"></i>
+    </div>
+
+    <!-- Official Rules Book Link -->
+    <div class="bg-slate-900/80 backdrop-blur-xl border border-gold-500/30 rounded-2xl p-5 shadow-[0_0_20px_rgba(245,158,11,0.1)] mb-5 text-center relative overflow-hidden group">
+        <div class="absolute inset-0 bg-gradient-to-r from-gold-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+        <div class="w-12 h-12 bg-gold-500/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-gold-500/20 shadow-inner">
+            <i data-lucide="external-link" class="w-5 h-5 text-gold-400"></i>
+        </div>
+        <p class="text-[10px] text-slate-300 font-bold mb-4 leading-relaxed px-4">${texts.bookIntro}</p>
+        <a href="https://tinyurl.com/ya6jp2cr" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 text-black px-6 py-3 rounded-[1rem] text-[10px] font-black uppercase tracking-[0.15em] shadow-[0_4px_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all active:scale-95">
+            ${texts.bookLink} <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </a>
+    </div>
+
+    <!-- The Rules List -->
+    <div class="space-y-4">
+        <!-- Rule 1 -->
+        <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-emerald-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
+            <div class="flex items-center gap-3 mb-3 border-b border-white/5 pb-3">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0 text-emerald-400 shadow-inner">
+                    <i data-lucide="swords" class="w-4.5 h-4.5"></i>
+                </div>
+                <h3 class="text-[12px] font-black text-white uppercase tracking-wider">${texts.rule1Title}</h3>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${texts.rule1Desc}</p>
+        </div>
+
+        <!-- Rule 2 -->
+        <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-blue-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
+            <div class="flex items-center gap-3 mb-3 border-b border-white/5 pb-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0 text-blue-400 shadow-inner">
+                    <i data-lucide="credit-card" class="w-4.5 h-4.5"></i>
+                </div>
+                <h3 class="text-[12px] font-black text-white uppercase tracking-wider">${texts.rule2Title}</h3>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${texts.rule2Desc}</p>
+        </div>
+
+        <!-- Rule 3 -->
+        <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-gold-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
+            <div class="flex items-center gap-3 mb-3 border-b border-white/5 pb-3">
+                <div class="w-9 h-9 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0 text-gold-400 shadow-inner">
+                    <i data-lucide="coins" class="w-4.5 h-4.5"></i>
+                </div>
+                <h3 class="text-[12px] font-black text-white uppercase tracking-wider">${texts.rule3Title}</h3>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${texts.rule3Desc}</p>
+        </div>
+
+        <!-- Rule 4 -->
+        <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-purple-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
+            <div class="flex items-center gap-3 mb-3 border-b border-white/5 pb-3">
+                <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0 text-purple-400 shadow-inner">
+                    <i data-lucide="pie-chart" class="w-4.5 h-4.5"></i>
+                </div>
+                <h3 class="text-[12px] font-black text-white uppercase tracking-wider">${texts.rule4Title}</h3>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${texts.rule4Desc}</p>
+        </div>
+
+        <!-- Rule 5 -->
+        <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-rose-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
+            <div class="flex items-center gap-3 mb-3 border-b border-white/5 pb-3">
+                <div class="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0 text-rose-400 shadow-inner">
+                    <i data-lucide="alert-triangle" class="w-4.5 h-4.5"></i>
+                </div>
+                <h3 class="text-[12px] font-black text-white uppercase tracking-wider">${texts.rule5Title}</h3>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${texts.rule5Desc}</p>
+        </div>
+    </div>
+    `;
+    
+    container.innerHTML = html;
+    lucide.createIcons();
+}
+
+// ==================== DISCIPLINARY SYSTEM HELPER FUNCTIONS ====================
+
+// এই ফাংশনটি প্লেয়ারের নামের পাশে হলুদ/লাল কার্ড বা ব্যানের আইকন দেখাবে
+function getDisciplineBadge(p) {
+    if (!p || !p.disciplineStatus || p.disciplineStatus === 'none') return '';
+    
+    if (p.disciplineStatus === 'banned') {
+        const banEnd = p.banUntil ? new Date(p.banUntil).toLocaleDateString() : 'Indefinite';
+        return `<i data-lucide="ban" class="w-3.5 h-3.5 text-rose-500 inline ml-1 drop-shadow-md" title="Banned until ${banEnd}"></i>`;
+    }
+    if (p.disciplineStatus === 'red') {
+        return `<div class="w-2.5 h-3.5 bg-rose-600 rounded-[2px] inline-block ml-1 shadow-[0_0_5px_rgba(225,29,72,0.8)] border border-rose-400 align-middle" title="Red Card"></div>`;
+    }
+    if (p.disciplineStatus === 'yellow') {
+        return `<div class="w-2.5 h-3.5 bg-yellow-400 rounded-[2px] inline-block ml-1 shadow-[0_0_5px_rgba(250,204,21,0.8)] border border-white/50 align-middle" title="Yellow Card"></div>`;
+    }
+    return '';
+}
+
+// এই ফাংশনটি চেক করবে প্লেয়ারটি বর্তমানে খেলতে পারবে কিনা
+function isPlayerSuspended(p) {
+    if (!p || !p.disciplineStatus || p.disciplineStatus === 'none' || p.disciplineStatus === 'yellow') return false;
+    
+    if (p.disciplineStatus === 'red') return true; // Red card means suspended
+    
+    if (p.disciplineStatus === 'banned') {
+        if (!p.banUntil) return true; // Indefinite ban
+        return new Date().getTime() < p.banUntil; // Check if ban duration is still active
+    }
+    return false;
+}
+
+// অ্যাডমিন প্যানেল থেকে মোডাল ওপেন করার ফাংশন
+function openDisciplineModal(playerId) {
+    const p = state.players.find(x => x.id === playerId);
+    if (!p) return;
+    
+    document.getElementById('discipline-player-id').value = p.id;
+    document.getElementById('discipline-player-name').textContent = p.name;
+    document.getElementById('ban-days-input').value = '';
+    
+    openModal('modal-discipline');
+    lucide.createIcons();
+}
+
+// একশন অ্যাপ্লাই করার ফাংশন এবং অটো-লজিক
+async function applyDiscipline(action) {
+    const playerId = document.getElementById('discipline-player-id').value;
+    let banDays = 0;
+    let banUntil = null;
+
+    if (action === 'banned') {
+        banDays = parseInt(document.getElementById('ban-days-input').value);
+        if (!banDays || banDays <= 0) return notify('Enter valid ban days!', 'alert-circle');
+        // Calculate milliseconds for ban duration
+        banUntil = new Date().getTime() + (banDays * 24 * 60 * 60 * 1000);
+    }
+
+    try {
+        await db.collection('players').doc(playerId).update({
+            disciplineStatus: action,
+            banUntil: banUntil
+        });
+
+        // যদি রেড কার্ড বা ব্যান হয়, চলমান ম্যাচে অটো-লুজার করে দিবে (১-০)
+        if (action === 'red' || action === 'banned') {
+            await applyAutoLossForSuspendedPlayer(playerId);
+        }
+
+        closeModal('modal-discipline');
+        notify('Disciplinary action applied successfully!', 'check-circle');
+    } catch (e) {
+        notify('Failed to apply discipline', 'x-circle');
+    }
+}
+
+// চলমান ম্যাচে অটোমেটিক ১-০ গোলে হারানোর ফাংশন
+async function applyAutoLossForSuspendedPlayer(playerId) {
+    const ongoingMatches = state.matches.filter(m => m.status === 'ongoing');
+    
+    for (let m of ongoingMatches) {
+        let changed = false;
+        let newMatchups = [...m.matchups];
+        
+        newMatchups.forEach((mu) => {
+            if (mu.p1Id === playerId) {
+                mu.score1 = 0;
+                mu.score2 = 1; // Opponent auto-wins 1-0
+                mu.tag1 = 'RED CARD';
+                changed = true;
+            }
+            if (mu.p2Id === playerId) {
+                mu.score1 = 1; // Opponent auto-wins 1-0
+                mu.score2 = 0;
+                mu.tag2 = 'RED CARD';
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            // Recalculate main team score automatically
+            let mainPts1 = 0, mainPts2 = 0;
+            newMatchups.forEach(mu => {
+                if (mu.score1 > mu.score2) mainPts1 += 3;
+                else if (mu.score2 > mu.score1) mainPts2 += 3;
+                else if (mu.score1 === mu.score2) { mainPts1 += 1; mainPts2 += 1; }
+            });
+
+            await db.collection('matches').doc(m.id).update({ 
+                matchups: newMatchups,
+                mainScore1: mainPts1,
+                mainScore2: mainPts2
+            });
+        }
+    }
 }
