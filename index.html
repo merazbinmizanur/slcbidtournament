@@ -342,6 +342,11 @@
     </div>
     <div id="p-info-container" class="space-y-4"></div>
 </div>
+<!-- RULES TAB (PLAYER) -->
+<div id="p-tab-rules" class="p-4 hidden pb-24">
+    <!-- Dynamically populated via JS -->
+</div>
+
 <!-- PROFILE TAB -->
 <div id="p-tab-profile" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
@@ -377,6 +382,10 @@
     <i data-lucide="info"></i>
     <span>Info</span>
 </button>
+<button onclick="switchPTab('rules')" id="pnav-rules" class="nav-item">
+        <i data-lucide="book-open"></i>
+        <span>Rules</span>
+    </button>
     <button onclick="switchPTab('profile')" id="pnav-profile" class="nav-item">
         <i data-lucide="user"></i>
         <span>User</span>
@@ -597,6 +606,10 @@
     </div>
     <div id="m-info-container" class="space-y-4"></div>
 </div>
+<!-- RULES TAB (MANAGER) -->
+<div id="m-tab-rules" class="p-4 hidden pb-24">
+    <!-- Dynamically populated via JS -->
+</div>
 <!-- PROFILE TAB -->
 <div id="m-tab-profile" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
@@ -631,6 +644,10 @@
     <button onclick="switchMTab('info')" id="mnav-info" class="nav-item">
     <i data-lucide="info"></i>
     <span>Info</span>
+</button>
+<button onclick="switchMTab('rules')" id="mnav-rules" class="nav-item">
+    <i data-lucide="book-open"></i>
+    <span>Rules</span>
 </button>
     <button onclick="switchMTab('profile')" id="mnav-profile" class="nav-item">
         <i data-lucide="user"></i>
@@ -901,7 +918,60 @@
 </main>
 
 <!-- ===================== MODALS ===================== -->
-<!-- ===================== DRAFT REPORT FULL-SCREEN MODAL ===================== -->
+<!-- Discipline Modal (Admin) -->
+<div id="modal-discipline" class="fixed inset-0 z-[2000] bg-slate-950/95 hidden flex items-center justify-center p-4 backdrop-blur-xl">
+    <div class="moving-border-rose rounded-[2.5rem] p-[2px] w-full max-w-sm animate-pop-in">
+        <div class="bg-slate-900 rounded-[2.4rem] p-6 relative">
+            <button onclick="closeModal('modal-discipline')" class="absolute top-5 right-5 text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <h3 class="text-[12px] font-black text-rose-400 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-5 h-5"></i> Disciplinary Action
+            </h3>
+            <p id="discipline-player-name" class="text-[14px] font-black text-white mb-4 uppercase tracking-wider">Player Name</p>
+            <input type="hidden" id="discipline-player-id">
+            
+            <div class="space-y-3">
+                <!-- Yellow Card -->
+                <button onclick="applyDiscipline('yellow')" class="w-full p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center gap-3 hover:bg-yellow-500/20 transition-all active:scale-95 text-left">
+                    <div class="w-6 h-8 bg-yellow-400 rounded shadow-md border border-yellow-500"></div>
+                    <div>
+                        <div class="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Yellow Card</div>
+                        <div class="text-[8px] text-slate-400 font-bold uppercase">Warning Only</div>
+                    </div>
+                </button>
+                
+                <!-- Red Card -->
+                <button onclick="applyDiscipline('red')" class="w-full p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-3 hover:bg-rose-500/20 transition-all active:scale-95 text-left">
+                    <div class="w-6 h-8 bg-rose-600 rounded shadow-md border border-rose-700"></div>
+                    <div>
+                        <div class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Red Card</div>
+                        <div class="text-[8px] text-slate-400 font-bold uppercase">1 Match Ban + Ongoing Auto Lose (1-0)</div>
+                    </div>
+                </button>
+                
+                <!-- Ban -->
+                <div class="p-3 bg-slate-950 border border-white/10 rounded-xl">
+                    <div class="flex items-center gap-3 mb-2">
+                        <i data-lucide="ban" class="w-6 h-6 text-rose-500"></i>
+                        <div>
+                            <div class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Ban Player</div>
+                            <div class="text-[8px] text-slate-400 font-bold uppercase">Select duration (Days)</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="ban-days-input" placeholder="Days (e.g. 7)" class="w-full p-2 bg-slate-900 border border-white/10 rounded-lg text-white text-xs font-bold outline-none focus:border-rose-500 text-center">
+                        <button onclick="applyDiscipline('banned')" class="px-4 py-2 bg-rose-600 text-white font-black text-[10px] uppercase rounded-lg">Ban</button>
+                    </div>
+                </div>
+                
+                <!-- Clear Action -->
+                <button onclick="applyDiscipline('none')" class="w-full py-3 mt-2 bg-slate-800 text-slate-300 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95">
+                    Clear Disciplinary Record
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="modal-draft-report" class="fixed inset-0 z-[1300] bg-slate-950 hidden flex-col transition-all overflow-y-auto custom-scrollbar">
     <!-- Sticky Header -->
     <div class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 px-4 py-4 flex items-center justify-between shadow-lg">
