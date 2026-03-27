@@ -13,8 +13,8 @@ const db = firebase.firestore();
 
 // ==================== CONSTANTS ====================
 const ADMIN_PASS = "00110011";
-const PLAYER_FEE = 50;
-const MANAGER_FEE = 200;
+const PLAYER_FEE = 30;
+const MANAGER_FEE = 100;
 const PAYMENT_NUMBER = "01830038179";
 
 // ==================== STATE ====================
@@ -23,7 +23,7 @@ let state = {
     currentUser: null,
     players: [],
     managers: [],
-    settings: { maxPlayers: 6, playersPerMatch: 6, teamBudget: 1500, baseBid: 50 },
+    settings: { maxPlayers: 6, playersPerMatch: 6, teamBudget: 1500, baseBid: 50, isBiddingOpen: true },
     bidSession: null,
     currentBidPlayer: null,
     bidCountdown: null,
@@ -327,7 +327,7 @@ function logoutUser() {
         unsubscribers.forEach(u => u());
         unsubscribers = [];
         clearBidCountdown();
-        state = { role: null, currentUser: null, players: [], managers: [], settings: { maxPlayers: 6, teamBudget: 1500, baseBid: 50 }, bidSession: null, currentBidPlayer: null, bidCountdown: null, bidHeld: false, remainingPlayers: [], unsoldPlayers: [], soldPlayers: [], matches: [], swapMatchId: null };
+        state = { role: null, currentUser: null, players: [], managers: [], settings: { maxPlayers: 6, playersPerMatch: 6, teamBudget: 1500, baseBid: 50, isBiddingOpen: true }, bidSession: null, currentBidPlayer: null, bidCountdown: null, bidHeld: false, remainingPlayers: [], unsoldPlayers: [], soldPlayers: [], matches: [], swapMatchId: null };
         saveLocal('slc_session', null);
         document.getElementById('player-app').classList.add('hidden');
         document.getElementById('manager-app').classList.add('hidden');
@@ -405,6 +405,7 @@ function launchPlayerApp() {
     document.getElementById('p-header-avatar').innerHTML = getAvatarUI(u, 'w-8', 'h-8', 'rounded-xl');
     switchPTab('home');
     subscribeAll();
+    applyBiddingVisibility();
     lucide.createIcons();
 }
 
@@ -662,16 +663,17 @@ function renderPlayerTeams() {
 }
 
 function renderPlayerSchedule() {
-    // নতুন লাইন: পয়েন্ট টেবিল রেন্ডার করার জন্য existing ফাংশন কল করা হলো
     renderStandings('p-standings-table');
     
-    // আগের কোড: ম্যাচগুলো রেন্ডার করার জন্য
     const list = document.getElementById('p-schedule-list');
-    if (!state.matches.length) {
-        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No matches scheduled yet</p>`;
+    const publicMatches = state.matches.filter(m => m.isPublic);
+    
+    if (!publicMatches.length) {
+        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No live matches available right now</p>`;
         return;
     }
-    list.innerHTML = state.matches.map(m => renderMatchCard(m, false)).join('');
+    // Fixed: calling the correct function 'renderTeamMatchCard'
+    list.innerHTML = publicMatches.map(m => renderTeamMatchCard(m, 'player')).join('');
     lucide.createIcons();
 }
 
@@ -753,13 +755,14 @@ function renderPlayerProfile() {
             <div class="w-10 h-10 rounded-xl ${u.paymentStatus === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)] text-emerald-400' : 'bg-gold-500/10 border-gold-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)] text-gold-400'} flex items-center justify-center flex-shrink-0">
                 <i data-lucide="${u.paymentStatus === 'approved' ? 'check-circle' : 'clock'}" class="w-5 h-5"></i>
             </div>
-            <div class="flex-1 min-w-0 flex items-center justify-between">
+<div class="flex-1 min-w-0 flex items-center justify-between">
                 <div>
                     <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Registration Status</div>
                     <div class="text-[12px] font-black ${accentColor} uppercase tracking-wider">${u.paymentStatus || 'Unregistered'}</div>
                 </div>
             </div>
         </div>
+        ${generatePlayerProfileStatsHtml(u.id)}
     </div>`;
     lucide.createIcons();
 }
@@ -774,6 +777,7 @@ function launchManagerApp() {
     document.getElementById('m-header-logo').innerHTML = getAvatarUI({name: u.teamName, avatar: u.logo}, 'w-8', 'h-8', 'rounded-xl');
     switchMTab('dashboard');
     subscribeAll();
+    applyBiddingVisibility();
     lucide.createIcons();
 }
 
@@ -845,12 +849,10 @@ function renderManagerPaymentArea() {
 
 function renderManagerBidArea() {
     const bidArea = document.getElementById('m-live-bid-area');
-    if (!state.bidSession || state.bidSession.status !== 'active') {
+    if (!state.settings.isBiddingOpen || !state.bidSession || state.bidSession.status !== 'active') {
         bidArea.classList.add('hidden');
         return;
     }
-    bidArea.classList.remove('hidden');
-    updateManagerBidUI();
 }
 
 function renderManagerSquad() {
@@ -975,13 +977,17 @@ async function saveLineup() {
 function renderManagerMatches() {
     const u = state.currentUser;
     const list = document.getElementById('m-matches-list');
-    const myMatches = state.matches.filter(m => {
-        // matches between my squad players vs opponent squad players
-        const myPlayerIds = state.players.filter(p => p.teamId === u.id).map(p => p.id);
-        return myPlayerIds.includes(m.player1Id) || myPlayerIds.includes(m.player2Id) || m.team1Id === u.id || m.team2Id === u.id;
-    });
-    if (!myMatches.length) { list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No matches yet</p>`; return; }
-    list.innerHTML = myMatches.map(m => renderMatchCard(m, true)).join('');
+    
+    // শুধু ম্যানেজারের নিজের টিমের ম্যাচগুলো এবং যেগুলো পাবলিক করা হয়েছে
+    const myMatches = state.matches.filter(m => (m.team1Id === u.id || m.team2Id === u.id) && m.isPublic);
+    
+    if (!myMatches.length) {
+        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">Matches are hidden until admin sets them LIVE</p>`;
+        return;
+    }
+    
+    // ভুল renderMatchCard-এর বদলে সঠিক ফাংশন renderTeamMatchCard ব্যবহার করা হয়েছে
+    list.innerHTML = myMatches.map(m => renderTeamMatchCard(m, 'manager')).join('');
     lucide.createIcons();
 }
 
@@ -1067,7 +1073,7 @@ const mPlayer = state.players.find(p => p.id === u.managerPlayerId) || {}; // NE
             </div>
         </div>
         
-        ${u.trxid ? `
+${u.trxid ? `
         <div class="flex items-center gap-4 p-3.5 bg-black/40 rounded-2xl border border-white/5 hover:bg-black/60 transition-colors">
             <div class="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center flex-shrink-0">
                 <i data-lucide="hash" class="w-4 h-4 text-slate-400"></i>
@@ -1077,47 +1083,12 @@ const mPlayer = state.players.find(p => p.id === u.managerPlayerId) || {}; // NE
                 <div class="text-[10px] font-black text-white tracking-widest">${u.trxid}</div>
             </div>
         </div>` : ''}
+        ${mPlayer && mPlayer.id ? generatePlayerProfileStatsHtml(mPlayer.id) : ''}
     </div>`;
     lucide.createIcons();
 }
 
 // ==================== MATCH RENDERING ====================
-
-
-// ==================== SWAP ====================
-async function openSwapModal(matchId) {
-    const match = state.matches.find(m => m.id === matchId);
-    if (!match) return;
-    if (match.swapUsed) return notify('Swap already used!', 'x-circle');
-    state.swapMatchId = matchId;
-
-    const u = state.currentUser;
-    const myPlayers = state.players.filter(p => p.teamId === u.id);
-
-    // Find which players are mine in this match
-    const myP1 = myPlayers.find(p => p.id === match.player1Id);
-    const myP2 = myPlayers.find(p => p.id === match.player2Id);
-
-    const content = document.getElementById('swap-content');
-    if (!myP1 && !myP2) { notify('No your players in this match', 'x'); return; }
-
-    // Get all my players in the match group
-    content.innerHTML = `
-    <p class="text-[8px] text-slate-400 font-bold uppercase">Current matchups will be swapped within your team. Select which player to swap:</p>
-    <div class="space-y-2 mt-3">
-        ${myPlayers.map(p => `
-        <label class="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-white/10 cursor-pointer">
-            <input type="checkbox" name="swap-player" value="${p.id}" class="accent-blue-500">
-            ${getAvatarUI(p, 'w-8', 'h-8', 'rounded-lg')}
-            <div>
-                <div class="text-[9px] font-black text-white uppercase">${p.name}</div>
-                <div class="text-[7px] text-emerald-400 font-bold">${p.serialNumber||''}</div>
-            </div>
-        </label>`).join('')}
-    </div>`;
-    openModal('modal-swap');
-    lucide.createIcons();
-}
 
 function renderAdminMatches() {
     const list = document.getElementById('a-matches-list');
@@ -1130,15 +1101,6 @@ function renderAdminMatches() {
     lucide.createIcons();
 }
 
-function renderManagerMatches() {
-    const u = state.currentUser;
-    const list = document.getElementById('m-matches-list');
-    const myMatches = state.matches.filter(m => m.team1Id === u.id || m.team2Id === u.id);
-    if (!myMatches.length) { list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No matches yet</p>`; return; }
-    list.innerHTML = myMatches.map(m => renderTeamMatchCard(m, 'manager')).join('');
-    lucide.createIcons();
-}
-
 function renderTeamMatchCard(m, viewType) {
     const t1 = state.managers.find(mg => mg.id === m.team1Id);
     const t2 = state.managers.find(mg => mg.id === m.team2Id);
@@ -1147,22 +1109,35 @@ function renderTeamMatchCard(m, viewType) {
     let actionBtn = '';
     let statusText = '';
     
-    if (m.status === 'pending_lineup') {
-        statusText = '<span class="text-gold-400 font-bold">Awaiting Lineups</span>';
-        if (viewType === 'manager') {
+if (m.status === 'pending_lineup') {
+    statusText = '<span class="text-gold-400 font-bold">Awaiting Lineups</span>';
+    if (viewType === 'manager') {
+        // সিকিউরিটি চেক: ম্যানেজার কি এই ম্যাচের কোনো দলের মালিক?
+        const isMyMatch = (m.team1Id === u.id || m.team2Id === u.id);
+        
+        if (isMyMatch) {
             const myLineup = m.team1Id === u.id ? m.lineup1 : m.lineup2;
             if (myLineup && myLineup.length > 0) {
                 actionBtn = `<span class="px-3 py-1 bg-emerald-900/40 text-emerald-400 text-[8px] font-black rounded-md border border-emerald-500/30">Lineup Submitted</span>`;
             } else {
                 actionBtn = `<button onclick="openLineupSubmission('${m.id}')" class="px-3 py-1.5 bg-blue-600 border border-blue-500 text-white text-[8px] font-black rounded-lg uppercase shadow-md active:scale-95 transition-all">Submit Lineup</button>`;
             }
-        } else if (viewType === 'admin') {
-            if (m.lineup1.length > 0 && m.lineup2.length > 0) {
-                actionBtn = `<button onclick="draw1v1Matchups('${m.id}')" class="px-3 py-1.5 bg-rose-600 border border-rose-500 text-white text-[8px] font-black rounded-lg uppercase shadow-md active:scale-95 transition-all">Draw 1VS1</button>`;
-            } else {
-                actionBtn = `<span class="text-[7px] text-slate-500 font-bold">Waiting for Managers</span>`;
-            }
+        } else {
+            actionBtn = `<span class="text-[7px] text-slate-500 font-bold uppercase tracking-widest">Opponent Match</span>`;
         }
+    } else if (viewType === 'admin') {
+    if (m.lineup1.length > 0 && m.lineup2.length > 0) {
+        actionBtn = `
+                <div class="flex gap-2">
+                    <button onclick="openLineupPreview('${m.id}')" class="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-emerald-600 border border-white/20 text-white text-[8px] font-black rounded-lg uppercase shadow-[0_0_10px_rgba(59,130,246,0.4)] active:scale-95 transition-all flex items-center gap-1">
+                        <i data-lucide="camera" class="w-3 h-3"></i> Preview
+                    </button>
+                    <button onclick="draw1v1Matchups('${m.id}')" class="px-3 py-1.5 bg-rose-600 border border-rose-500 text-white text-[8px] font-black rounded-lg uppercase shadow-md active:scale-95 transition-all">Draw 1VS1</button>
+                </div>`;
+    } else {
+        actionBtn = `<span class="text-[7px] text-slate-500 font-bold">Waiting for Managers</span>`;
+    }
+}
     } else if (m.status === 'ongoing') {
         statusText = '<span class="text-blue-400 font-bold">Match Ongoing</span>';
         if (viewType === 'manager') {
@@ -1174,20 +1149,44 @@ function renderTeamMatchCard(m, viewType) {
                 <button onclick="openMatchResultsModal('${m.id}')" class="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-lg uppercase">Results</button>
             </div>`;
         }
-    } else if (m.status === 'completed') {
-        statusText = '<span class="text-emerald-400 font-bold">Completed</span>';
-        actionBtn = `<button onclick="openMatchResultsModal('${m.id}')" class="px-3 py-1.5 bg-slate-800 border border-white/10 text-slate-400 text-[8px] font-black rounded-lg uppercase">View Score</button>`;
+} else if (m.status === 'completed') {
+    statusText = '<span class="text-emerald-400 font-bold">Completed</span>';
+    if (viewType === 'admin') {
+        actionBtn = `
+            <div class="flex gap-1.5">
+                <button onclick="openMatchResultPreview('${m.id}')" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 border border-white/20 text-white text-[8px] font-black rounded-lg uppercase shadow-[0_0_10px_rgba(16,185,129,0.4)] active:scale-95 transition-all flex items-center gap-1"><i data-lucide="camera" class="w-3 h-3"></i> Result Card</button>
+                <button onclick="openMatchResultsModal('${m.id}')" class="px-3 py-1.5 bg-slate-800 border border-white/10 text-slate-400 text-[8px] font-black rounded-lg uppercase">Edit Score</button>
+            </div>`;
+    } else {
+        actionBtn = `<button onclick="openMatchResultPreview('${m.id}')" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 border border-white/20 text-white text-[9px] font-black rounded-lg uppercase shadow-[0_0_10px_rgba(16,185,129,0.4)] active:scale-95 transition-all flex items-center gap-1.5"><i data-lucide="camera" class="w-3.5 h-3.5"></i> View Result Card</button>`;
     }
+}
 
     return `
     <div class="match-card bg-slate-900/60 border border-white/5 rounded-[1.2rem] overflow-hidden mb-4 shadow-lg p-4 relative">
-        <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
-            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-black/50 px-2 py-1 rounded border border-white/5">Match ${m.matchNumber || '#'}</span>
-            <span class="text-[9px] uppercase tracking-widest">${statusText}</span>
+<div class="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-black/50 px-2 py-1 rounded border border-white/5 flex items-center gap-1">
+                Match ${m.matchNumber || '#'} <span class="text-gold-400">|</span> ${m.round || 'Group Stage'}
+            </span>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] uppercase tracking-widest">${statusText}</span>
+                ${viewType === 'admin' ? `
+                <div class="flex gap-1.5">
+                    <button onclick="toggleMatchVisibility('${m.id}', ${m.isPublic || false})" class="bg-${m.isPublic ? 'emerald' : 'slate'}-600/20 p-1 rounded-md text-${m.isPublic ? 'emerald' : 'slate'}-400 hover:text-white hover:bg-${m.isPublic ? 'emerald' : 'slate'}-500 transition-colors shadow-sm" title="${m.isPublic ? 'Hide Match' : 'Set Live'}">
+                        <i data-lucide="${m.isPublic ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="openMatchSettings('${m.id}')" class="bg-blue-600/20 p-1 rounded-md text-blue-400 hover:text-white hover:bg-blue-500 transition-colors shadow-sm" title="Edit Match Settings"><i data-lucide="settings" class="w-3.5 h-3.5"></i></button>
+                </div>` : ''}
+            </div>
         </div>
-        
-        <div class="flex items-center justify-between gap-3 mb-4">
-            <div class="flex-1 text-center">
+
+<div class="flex items-center justify-between gap-3 mb-4 cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors relative group" onclick="viewMatchDetails('${m.id}')">
+            <!-- Click Hint (Hover Overlay) -->
+            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-xl backdrop-blur-sm z-20">
+                <span class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-lg border border-white/10 shadow-lg"><i data-lucide="eye" class="w-3.5 h-3.5 text-emerald-400"></i> View Matchups</span>
+            </div>
+            
+            <div class="flex-1 text-center relative z-10">
                 ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-12', 'h-12', 'rounded-xl mx-auto mb-2 border border-white/10 object-contain bg-slate-800')}
                 <div class="text-[10px] font-black text-white truncate uppercase">${t1?.teamName || 'TBD'}</div>
                 ${m.status === 'completed' ? `<div class="text-2xl font-black text-emerald-400 mt-1">${m.mainScore1 || 0}</div>` : ''}
@@ -1206,6 +1205,132 @@ function renderTeamMatchCard(m, viewType) {
             ${actionBtn}
         </div>
     </div>`;
+}
+function openMatchSettings(matchId) {
+    activeMatchId = matchId;
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m) return;
+    
+    let html = `
+    <div class="space-y-3">
+        <div>
+            <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Match Number</label>
+            <input type="number" id="edit-m-number" value="${m.matchNumber || ''}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500">
+        </div>
+        <div>
+            <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Round Name (e.g. Semi Final)</label>
+            <input type="text" id="edit-m-round" value="${m.round || 'Group Stage'}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+        </div>
+        <div>
+            <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Deadline Date & Time</label>
+            <input type="text" id="edit-m-deadline" placeholder="e.g. 12:30 AM | March 23, 2025" value="${m.deadline || ''}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+        </div>
+        <div>
+            <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Match Referee Name</label>
+            <input type="text" id="edit-m-referee" placeholder="Enter Referee Name" value="${m.referee || ''}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+        </div>
+    </div>`;
+    
+    document.getElementById('generic-modal-body').innerHTML = html;
+    document.getElementById('generic-modal-title').innerText = "Match Settings";
+    const btn = document.getElementById('generic-modal-btn');
+    btn.innerHTML = `<i data-lucide="save" class="w-4 h-4 inline"></i> Save Settings`;
+    btn.className = "w-full py-4 mt-2 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all";
+    btn.classList.remove('hidden');
+    btn.onclick = saveMatchSettings;
+    
+    openModal('modal-generic');
+    lucide.createIcons();
+}
+
+async function saveMatchSettings() {
+    const num = parseInt(document.getElementById('edit-m-number').value) || 0;
+    const round = document.getElementById('edit-m-round').value.trim();
+    const deadline = document.getElementById('edit-m-deadline').value.trim();
+    const referee = document.getElementById('edit-m-referee').value.trim();
+    
+    try {
+        await db.collection('matches').doc(activeMatchId).update({
+            matchNumber: num,
+            round: round,
+            deadline: deadline,
+            referee: referee
+        });
+        closeModal('modal-generic');
+        notify('Match Settings Saved!', 'check-circle');
+    } catch (e) {
+        notify('Failed to save settings', 'x-circle');
+    }
+}
+async function toggleMatchVisibility(matchId, currentStatus) {
+    try {
+        await db.collection('matches').doc(matchId).update({
+            isPublic: !currentStatus
+        });
+        notify(currentStatus ? 'Match is now HIDDEN' : 'Match is now LIVE!', 'check-circle');
+    } catch (e) {
+        notify('Failed to toggle visibility', 'x-circle');
+    }
+}
+// --- নতুন ফাংশন: ম্যাচ ডিটেইলস (1v1 Matchups) দেখার জন্য ---
+function viewMatchDetails(matchId) {
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m) return;
+    
+    let html = '';
+    
+    if (m.status === 'pending_lineup') {
+        html = `
+        <div class="text-center py-10">
+            <i data-lucide="clock" class="w-10 h-10 text-gold-400 mx-auto mb-3 animate-pulse"></i>
+            <p class="text-[11px] text-white font-black uppercase tracking-widest">Matchups Not Drawn</p>
+            <p class="text-[8px] text-slate-500 font-bold uppercase mt-1">Waiting for Admin or Managers</p>
+        </div>`;
+    } else {
+        html = `<div class="space-y-2 max-h-[55vh] overflow-y-auto custom-scrollbar pr-2 pb-2">`;
+        m.matchups.forEach((mu, i) => {
+            const p1 = state.players.find(p => p.id === mu.p1Id);
+            const p2 = state.players.find(p => p.id === mu.p2Id);
+            
+            const tag1 = mu.tag1 ? `<span class="text-[6px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded ml-1 border border-rose-500/30 font-black tracking-widest">${mu.tag1}</span>` : '';
+            const tag2 = mu.tag2 ? `<span class="text-[6px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded mr-1 border border-rose-500/30 font-black tracking-widest">${mu.tag2}</span>` : '';
+            
+            html += `
+            <div class="bg-black/40 border border-white/5 rounded-xl p-3 shadow-inner flex items-center justify-between gap-3">
+                <div class="flex-1 text-right min-w-0">
+                    <div class="text-[10px] font-black text-white uppercase truncate flex justify-end items-center">${p1?.name || '--'} ${tag1}</div>
+                    ${m.status === 'completed' ? `<div class="text-[14px] font-black text-emerald-400 mt-0.5">${mu.score1 || 0}</div>` : ''}
+                </div>
+                
+                <div class="text-[8px] text-slate-500 font-black bg-slate-900 border border-white/5 px-2 py-1 rounded shadow-md italic flex-shrink-0">VS</div>
+                
+                <div class="flex-1 text-left min-w-0">
+                    <div class="text-[10px] font-black text-white uppercase truncate flex justify-start items-center">${tag2} ${p2?.name || '--'}</div>
+                    ${m.status === 'completed' ? `<div class="text-[14px] font-black text-emerald-400 mt-0.5">${mu.score2 || 0}</div>` : ''}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+        
+        // MVP Section if completed
+        if (m.status === 'completed' && m.mvpId) {
+            const mvpP = state.players.find(p => p.id === m.mvpId);
+            if (mvpP) {
+                html += `
+                <div class="mt-4 bg-gradient-to-r from-gold-500/10 via-gold-500/20 to-gold-500/10 border border-gold-500/30 rounded-xl p-3 text-center shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                    <span class="text-[8px] text-gold-400 font-black uppercase tracking-[0.2em] block mb-1 flex items-center justify-center gap-1"><i data-lucide="star" class="w-3 h-3"></i> Match MVP</span>
+                    <span class="text-[13px] font-black text-white uppercase tracking-wider">${mvpP.name}</span>
+                </div>`;
+            }
+        }
+    }
+    
+    document.getElementById('generic-modal-body').innerHTML = html;
+    document.getElementById('generic-modal-title').innerText = "1v1 Matchups";
+    // View মোডে কনফার্ম বাটনের দরকার নেই, তাই এটি লুকিয়ে রাখা হলো
+    document.getElementById('generic-modal-btn').classList.add('hidden');
+    openModal('modal-generic');
+    lucide.createIcons();
 }
 
 function renderStandings(containerId) {
@@ -1226,14 +1351,39 @@ function renderStandings(containerId) {
         const t2id = m.team2Id;
         if (!table[t1id] || !table[t2id]) return;
 
-        const s1 = m.score1 ?? 0;
-        const s2 = m.score2 ?? 0;
-        table[t1id].gf += s1; table[t1id].ga += s2; table[t1id].played++;
-        table[t2id].gf += s2; table[t2id].ga += s1; table[t2id].played++;
+        // দলীয় ম্যাচের প্রাপ্ত পয়েন্ট (৩, ১ বা ০)
+        const t1MatchPts = m.mainScore1 ?? 0;
+        const t2MatchPts = m.mainScore2 ?? 0;
 
-        if (s1 > s2) { table[t1id].w++; table[t1id].pts += 3; table[t2id].l++; }
-        else if (s2 > s1) { table[t2id].w++; table[t2id].pts += 3; table[t1id].l++; }
-        else { table[t1id].d++; table[t2id].d++; table[t1id].pts++; table[t2id].pts++; }
+        // আসল গোলের হিসাব (1v1 ম্যাচগুলো থেকে)
+        let t1Goals = 0;
+        let t2Goals = 0;
+        if (m.matchups && m.matchups.length > 0) {
+            m.matchups.forEach(mu => {
+                t1Goals += (mu.score1 || 0);
+                t2Goals += (mu.score2 || 0);
+            });
+        }
+
+        // মোট গোল (GF) এবং হজম করা গোল (GA) আপডেট
+        table[t1id].gf += t1Goals;
+        table[t1id].ga += t2Goals;
+        table[t2id].gf += t2Goals;
+        table[t2id].ga += t1Goals;
+
+        // ম্যাচ খেলার সংখ্যা আপডেট
+        table[t1id].played++;
+        table[t2id].played++;
+
+        // জয়, ড্র, হার এবং পয়েন্ট টেবিলের পয়েন্ট আপডেট
+        if (t1MatchPts > t2MatchPts) {
+            table[t1id].w++; table[t1id].pts += 3; table[t2id].l++;
+        } else if (t2MatchPts > t1MatchPts) {
+            table[t2id].w++; table[t2id].pts += 3; table[t1id].l++;
+        } else {
+            table[t1id].d++; table[t2id].d++;
+            table[t1id].pts += 1; table[t2id].pts += 1;
+        }
     });
 
     const sorted = Object.values(table).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf);
@@ -1252,17 +1402,14 @@ function renderStandings(containerId) {
     const rowsHtml = sorted.map((row, i) => {
         const isTop4 = i < 4; // Checks if team is in Top 4
         
-        // Colors for Rank Numbers (Gold, Silver, Bronze, Emerald for 4th)
+        // Colors for Rank Numbers
         const rankColor = i === 0 ? 'text-gold-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
                           i === 1 ? 'text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.5)]' :
                           i === 2 ? 'text-amber-600 drop-shadow-[0_0_8px_rgba(217,119,6,0.5)]' :
                           isTop4 ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'text-slate-500';
 
-        // Background and Border logic for Top 4 Highlight
         const bgClass = isTop4 ? 'bg-gradient-to-r from-emerald-500/10 to-transparent' : 'bg-transparent hover:bg-white/5';
         const borderClass = isTop4 ? 'border-l-[3px] border-emerald-500' : 'border-l-[3px] border-transparent';
-        
-        // Visual Cut-Off Line after the 4th position
         const isCutoff = i === 3;
         const bottomBorder = isCutoff ? 'border-b border-emerald-500/40 shadow-[0_4px_10px_-4px_rgba(16,185,129,0.3)] z-10' : 'border-b border-white/5';
         
@@ -1329,44 +1476,159 @@ function renderStandings(containerId) {
 // --- NEW TEAM MATCH FUNCTIONS ---
 
 let activeMatchId = null;
-
 function openLineupSubmission(matchId) {
     activeMatchId = matchId;
     const u = state.currentUser;
+    const m = state.matches.find(x => x.id === matchId);
+    
+    if (!m || (m.team1Id !== u.id && m.team2Id !== u.id)) {
+        return notify('You are not authorized to submit lineup for this match!', 'alert-circle');
+    }
+    
+    // Security Check: Prevent submitting if already submitted
+    const isTeam1 = m.team1Id === u.id;
+    const myLineup = isTeam1 ? m.lineup1 : m.lineup2;
+    if (myLineup && myLineup.length > 0) {
+        return notify('Lineup already submitted for this match!', 'alert-circle');
+    }
+    
     const myPlayers = state.players.filter(p => p.teamId === u.id);
     const limit = state.settings.playersPerMatch || 6;
     
-    let html = `<p class="text-[8px] text-slate-400 mb-3 uppercase font-bold">Select ${limit} players for this match:</p><div class="space-y-2">`;
-    myPlayers.forEach(p => {
-        html += `<label class="flex items-center gap-3 p-3 bg-slate-950 border border-white/10 rounded-xl cursor-pointer hover:border-blue-500/50">
-            <input type="checkbox" name="lineup-select" value="${p.id}" class="w-4 h-4 accent-blue-500">
-            ${getAvatarUI(p, 'w-8', 'h-8', 'rounded-lg')}
-            <span class="text-[10px] font-black text-white uppercase">${p.name}</span>
+    let html = `
+    <div class="bg-black/40 border border-white/5 rounded-xl p-3 mb-4 flex items-center justify-between shadow-inner">
+        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Select Starting ${limit}</span>
+        <span class="text-[12px] font-black text-slate-500 bg-slate-950 px-3 py-1 rounded-lg border border-white/10 transition-colors shadow-sm" id="lineup-counter">0 / ${limit}</span>
+    </div>
+    <div class="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 pb-2">`;
+    
+myPlayers.forEach(p => {
+    html += `
+        <label id="label-lineup-${p.id}" class="flex items-center justify-between p-3 bg-slate-900 border border-white/10 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all group shadow-sm">
+            <div class="flex items-center gap-3">
+                ${getAvatarUI(p, 'w-10', 'h-10', 'rounded-lg border border-white/10 shadow-md')}
+                <div>
+                    <div class="text-[11px] font-black text-white uppercase tracking-wider player-name-label" data-name="${p.name}">${p.name}</div>
+                    <div class="text-[8px] text-slate-400 font-bold tracking-widest mt-0.5 flex items-center gap-1">
+                        <i data-lucide="gamepad-2" class="w-2.5 h-2.5 text-emerald-500"></i> ${p.konamiId || 'N/A'}
+                    </div>
+                </div>
+            </div>
+            <div class="relative flex items-center justify-center w-6 h-6 rounded-md border border-white/20 bg-slate-950 group-hover:border-emerald-500 transition-colors">
+                <input type="checkbox" name="lineup-select" value="${p.id}" class="absolute opacity-0 w-full h-full cursor-pointer" onchange="toggleLineupSelection(this, '${p.id}', ${limit})">
+                <i data-lucide="check" id="check-${p.id}" class="w-4 h-4 text-emerald-400 opacity-0 transition-opacity"></i>
+            </div>
         </label>`;
-    });
-    html += `</div>`;
-    document.getElementById('generic-modal-body').innerHTML = html;
-    document.getElementById('generic-modal-title').innerText = "Submit Lineup";
-    document.getElementById('generic-modal-btn').innerText = "Lock Lineup";
-    document.getElementById('generic-modal-btn').onclick = submitLineupProcess;
+});
+html += `</div>
+    <div id="captain-select-container" class="mt-4 pt-4 border-t border-white/10 hidden">
+        <label class="text-[9px] text-gold-400 font-black uppercase tracking-widest block mb-2"><i data-lucide="star" class="w-3.5 h-3.5 inline mb-0.5"></i> Select Captain</label>
+        <select id="lineup-captain" class="w-full p-3 bg-slate-950 border border-gold-500/30 text-white text-[11px] font-bold rounded-xl outline-none focus:border-gold-500">
+            <!-- Options dynamically added -->
+        </select>
+    </div>`;
+
+document.getElementById('generic-modal-body').innerHTML = html;
+    document.getElementById('generic-modal-title').innerText = "Submit Starting Lineup";
+    
+    const btn = document.getElementById('generic-modal-btn');
+    btn.innerHTML = `<i data-lucide="shield-check" class="w-4 h-4"></i> Lock Final Lineup`;
+    btn.className = "w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] active:scale-95 transition-all mt-2";
+    btn.onclick = submitLineupProcess;
+    btn.classList.remove('hidden');
+    
     openModal('modal-generic');
+    lucide.createIcons();
+}
+
+function toggleLineupSelection(checkbox, id, limit) {
+    const label = document.getElementById(`label-lineup-${id}`);
+    const checkIcon = document.getElementById(`check-${id}`);
+    
+    if (checkbox.checked) {
+        label.classList.add('bg-emerald-900/20', 'border-emerald-500/50');
+        label.classList.remove('bg-slate-900', 'border-white/10');
+        checkIcon.classList.remove('opacity-0');
+    } else {
+        label.classList.remove('bg-emerald-900/20', 'border-emerald-500/50');
+        label.classList.add('bg-slate-900', 'border-white/10');
+        checkIcon.classList.add('opacity-0');
+    }
+    
+    const count = document.querySelectorAll('input[name="lineup-select"]:checked').length;
+    const counterEl = document.getElementById('lineup-counter');
+    counterEl.innerText = `${count} / ${limit}`;
+    
+    if (count === limit) {
+        counterEl.classList.replace('text-slate-500', 'text-emerald-400');
+        counterEl.classList.replace('border-white/10', 'border-emerald-500/50');
+        counterEl.classList.replace('bg-slate-950', 'bg-emerald-500/10');
+    } else {
+        counterEl.classList.replace('text-emerald-400', 'text-slate-500');
+        counterEl.classList.replace('border-emerald-500/50', 'border-white/10');
+        counterEl.classList.replace('bg-emerald-500/10', 'bg-slate-950');
+    }
+    // Dynamic Captain Selection logic
+const capContainer = document.getElementById('captain-select-container');
+const capSelect = document.getElementById('lineup-captain');
+
+if (count === limit) {
+    let options = '<option value="">-- Choose Captain --</option>';
+    document.querySelectorAll('input[name="lineup-select"]:checked').forEach(cb => {
+        const pId = cb.value;
+        const labelEl = document.getElementById(`label-lineup-${pId}`).querySelector('.player-name-label');
+        const pName = labelEl ? labelEl.getAttribute('data-name') : 'Player';
+        options += `<option value="${pId}">${pName}</option>`;
+    });
+    capSelect.innerHTML = options;
+    capContainer.classList.remove('hidden');
+    lucide.createIcons();
+} else {
+    capContainer.classList.add('hidden');
+    capSelect.innerHTML = '';
+}
 }
 
 async function submitLineupProcess() {
     const limit = state.settings.playersPerMatch || 6;
     const selected = Array.from(document.querySelectorAll('input[name="lineup-select"]:checked')).map(cb => cb.value);
-    if (selected.length !== limit) return notify(`Please select exactly ${limit} players!`, 'alert-circle');
+    
+    if (selected.length !== limit) {
+        return notify(`Please select exactly ${limit} players!`, 'alert-circle');
+    }
+    const captainId = document.getElementById('lineup-captain')?.value;
+if (!captainId) {
+    return notify('Please select a Captain from your lineup!', 'alert-circle');
+}
     
     const m = state.matches.find(x => x.id === activeMatchId);
     const u = state.currentUser;
-    const isTeam1 = m.team1Id === u.id;
-    const updateField = isTeam1 ? { lineup1: selected } : { lineup2: selected };
     
-    try {
-        await db.collection('matches').doc(activeMatchId).update(updateField);
+    if (!m || (m.team1Id !== u.id && m.team2Id !== u.id)) {
         closeModal('modal-generic');
-        notify('Lineup Locked!', 'check-circle');
-    } catch(e) { notify('Failed to submit lineup', 'x-circle'); }
+        return notify('Action Blocked: Unauthorized Lineup Submission!', 'x-circle');
+    }
+    
+    // Final security check: Ensure lineup is not already submitted
+    const isTeam1 = m.team1Id === u.id;
+    const myLineup = isTeam1 ? m.lineup1 : m.lineup2;
+    if (myLineup && myLineup.length > 0) {
+        closeModal('modal-generic');
+        return notify('Lineup has already been locked for this match!', 'alert-circle');
+    }
+    
+    // Confirmation Dialog before submission
+    askConfirm(`Are you sure you want to lock these ${limit} players? This action cannot be undone or changed later.`, async () => {
+        const updateField = isTeam1 ? { lineup1: selected, captain1: captainId } : { lineup2: selected, captain2: captainId };
+        
+        try {
+            await db.collection('matches').doc(activeMatchId).update(updateField);
+            closeModal('modal-generic');
+            notify('Official Lineup Locked Successfully!', 'check-circle');
+        } catch (e) {
+            notify('Failed to submit lineup', 'x-circle');
+        }
+    });
 }
 
 async function draw1v1Matchups(matchId) {
@@ -1402,28 +1664,55 @@ function copyMatchSchedule(matchId) {
     const t1 = state.managers.find(mg => mg.id === m.team1Id);
     const t2 = state.managers.find(mg => mg.id === m.team2Id);
     
-    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    // Default values if not set by admin
+    const roundName = (m.round || 'GROUP STAGE').toUpperCase();
+    const deadline = (m.deadline || 'TBD').toUpperCase();
+    const referee = (m.referee || 'SET BY ADMIN').toUpperCase();
     
-    let text = `𝗦𝗟𝗖 𝗕𝗜𝗗 𝗧𝗢𝗨𝗥𝗡𝗔𝗠𝗘𝗡𝗧 - 𝗦𝟭𝟰\n𝗠𝗔𝗧𝗖𝗛 𝗡𝗨𝗠𝗕𝗘𝗥 - ${m.matchNumber} | 𝗠𝗔𝗧𝗖𝗛𝗗𝗔𝗬 - ${dateStr}\n\n`;
-    text += `${t1.teamName} 🆚 ${t2.teamName}\n\n`;
+    // Extract Captain Names (From lineup submission, fallback to owner)
+    const cap1Obj = state.players.find(p => p.id === m.captain1);
+    const cap2Obj = state.players.find(p => p.id === m.captain2);
+    const cap1Name = (cap1Obj ? cap1Obj.name : t1.name).toUpperCase();
+    const cap2Name = (cap2Obj ? cap2Obj.name : t2.name).toUpperCase();
+    
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+    
+    let text = `𝗦𝗟𝗖 𝗕𝗜𝗗 𝗧𝗢𝗨𝗥𝗡𝗔𝗠𝗘𝗡𝗧 - 𝗦𝟭𝟰\n`;
+    text += `𝗠𝗔𝗧𝗖𝗛 𝗡𝗨𝗠𝗕𝗘𝗥 - ${m.matchNumber || '#'} | ${roundName}\n\n`;
+    text += `${t1.teamName.toUpperCase()} 🆚 ${t2.teamName.toUpperCase()}\n\n`;
     
     m.matchups.forEach((mu, i) => {
+        // Team A (Left) always comes from p1Id (lineup1)
         const p1 = state.players.find(p => p.id === mu.p1Id);
+        // Team B (Right) always comes from p2Id (lineup2)
         const p2 = state.players.find(p => p.id === mu.p2Id);
-        const tag1 = mu.tag1 ? `[${mu.tag1}]` : '';
-        const tag2 = mu.tag2 ? ` [${mu.tag2}]` : '';
-        text += `${i+1}️⃣ ${p1?.name}${tag1} 🆚 ${p2?.name}${tag2}\n`;
+        
+        const p1Name = (p1?.name || '--').toUpperCase();
+        const p2Name = (p2?.name || '--').toUpperCase();
+        
+        const tag1 = mu.tag1 ? ` [${mu.tag1.toUpperCase()}]` : '';
+        const tag2 = mu.tag2 ? ` [${mu.tag2.toUpperCase()}]` : '';
+        
+        text += `${i+1}️⃣ ${p1Name}${tag1} 🆚 ${p2Name}${tag2}\n`;
     });
     
-    text += `\n𝗠𝗔𝗧𝗖𝗛 𝗥𝗘𝗠𝗔𝗜𝗡𝗜𝗡𝗚 : ${state.matches.filter(x => x.status !== 'completed').length}\n\n`;
-    text += `𝗣𝗢𝗜𝗡𝗧𝗦 -\n📁${t1.teamName} = 00\n📁${t2.teamName} = 00\n\n`;
-    text += `⛔ 𝗗𝗘𝗔𝗗𝗟𝗜𝗡𝗘 : 𝟭𝟮:𝟯𝟬 𝗔𝗠\n| 𝗠𝗔𝗥𝗖𝗛 𝟮𝟯 , 𝟮𝟬𝟮𝟱\n\n`;
-    text += `𝗖𝗔𝗣𝗧𝗔𝗜𝗡 :\n🤵 ${t1.teamName} - ${t1.name}\n🤵 ${t2.teamName} - ${t2.name}\n\n`;
-    text += `𝐌𝐀𝐓𝐂𝐇 𝐑𝐄𝐅𝐄𝐑𝐄𝐄 : Set by Admin\n\n🄼🄰🄽 🄾🄵 🅃🄷🄴 🄼🄰🅃🄲🄷 :\n\n`;
-    text += `💠 প্রত্যেক ম্যাচ শেষে বিজয়ী দল লিস্ট আপডেট করে দিবেন।\n💠 নামের সাথে SUB/SWAP লিখে দিবেন।\n💠 ম্যাচডে চলাকালীন ইনফো পরিবর্তন সম্ভব নয় ।\n\n`;
-    text += `▫️𝐓𝐡𝐢𝐬 𝐭𝐨𝐮𝐫𝐧𝐚𝐦𝐞𝐧𝐭 𝐰𝐢𝐥𝐥 𝐛𝐞 𝐜𝐨𝐧𝐝𝐮𝐜𝐭𝐞𝐝 𝐞𝐧𝐭𝐢𝐫𝐞𝐥𝐲 𝐚𝐜𝐜𝐨𝐫𝐝𝐢𝐧𝐠 𝐭𝐨 𝗦𝗟𝗖 𝗥𝗨𝗟𝗘𝗦 𝗕𝗢𝗢𝗞\nhttps://tinyurl.com/ya6jp2cr\n\n`;
-    text += `— 𝗔𝗱𝗺𝗶𝗻𝘀𝘁𝗿𝗮𝘁𝗲𝗱 𝗯𝘆 𝗦𝗬𝗡𝗧𝗛𝗘𝗫 𝗟𝗘𝗚𝗜𝗢𝗡 𝗖𝗛𝗥𝗢𝗡𝗜𝗖𝗟𝗘𝗦`;
-
+    text += `\n𝗠𝗔𝗧𝗖𝗛 𝗥𝗘𝗠𝗔𝗜𝗡𝗜𝗡𝗚 : ${m.matchups.length}\n\n`;
+    text += `𝗣𝗢𝗜𝗡𝗧𝗦 -\n📁${t1.teamName.toUpperCase()} = 00\n📁${t2.teamName.toUpperCase()} = 00\n\n`;
+    
+    text += `⛔ 𝗗𝗘𝗔𝗗𝗟𝗜𝗡𝗘 : ${deadline}\n\n`;
+    
+    text += `𝗖𝗔𝗣𝗧𝗔𝗜𝗡 :\n🤵 ${t1.teamName.toUpperCase()} - ${cap1Name}\n🤵 ${t2.teamName.toUpperCase()} - ${cap2Name}\n\n`;
+    
+    text += `𝗠𝗔𝗧𝗖𝗛 𝗥𝗘𝗙𝗘𝗥𝗘𝗘 : ${referee}\n\n`;
+    
+    text += `🄼🄰🄽 🄾🄵 🅃🄷🄴 🄼🄰🅃🄲🄷 :\n\n`;
+    
+    text += `💠 প্রত্যেক ম্যাচ শেষে বিজয়ী দল লিস্ট আপডেট করে দিবেন।\n`;
+    text += `💠 নামের সাথে SUB/SWAP লিখে দিবেন।\n`;
+    text += `💠 ম্যাচডে চলাকালীন ইনফো পরিবর্তন সম্ভব নয় ।\n\n`;
+    
+    text += `▫️𝗧𝗛𝗜𝗦 𝗧𝗢𝗨𝗥𝗡𝗔𝗠𝗘𝗡𝗧 𝗪𝗜𝗟𝗟 𝗕𝗘 𝗖𝗢𝗡𝗗𝗨𝗖𝗧𝗘𝗗 𝗘𝗡𝗧𝗜𝗥𝗘𝗟𝗬 𝗔𝗖𝗖𝗢𝗥𝗗𝗜𝗡𝗚 𝗧𝗢 𝗦𝗟𝗖 𝗥𝗨𝗟𝗘𝗦 𝗕𝗢𝗢𝗞\nhttps://tinyurl.com/ya6jp2cr\n\n`;
+    text += `— 𝗔𝗗𝗠𝗜𝗡𝗜𝗦𝗧𝗥𝗔𝗧𝗘𝗗 𝗕𝗬 𝗦𝗬𝗡𝗧𝗛𝗘𝗫 𝗟𝗘𝗚𝗜𝗢𝗡 𝗖𝗛𝗥𝗢𝗡𝗜𝗖𝗟𝗘𝗦`;
     navigator.clipboard.writeText(text).then(() => notify('Format Copied to Clipboard!', 'copy'));
 }
 
@@ -1624,65 +1913,32 @@ async function saveTeamMatchResults() {
     let mainPts1 = 0, mainPts2 = 0;
     
     newMatchups.forEach((mu, i) => {
-            mu.score1 = parseInt(document.getElementById(`sc1-${i}`).value) || 0;
-            mu.score2 = parseInt(document.getElementById(`sc2-${i}`).value) || 0;
+        mu.score1 = parseInt(document.getElementById(`sc1-${i}`).value) || 0;
+        mu.score2 = parseInt(document.getElementById(`sc2-${i}`).value) || 0;
         
+        // 1v1 ম্যাচের গোল অনুযায়ী মিনি-পয়েন্ট যোগ হচ্ছে
         if (mu.score1 > mu.score2) mainPts1 += 3;
         else if (mu.score2 > mu.score1) mainPts2 += 3;
         else if (mu.score1 === mu.score2) { mainPts1 += 1; mainPts2 += 1; }
     });
     
-    let mainScore1 = 0, mainScore2 = 0;
-    if (mainPts1 > mainPts2) mainScore1 = 3;
-    else if (mainPts2 > mainPts1) mainScore2 = 3;
-    else { mainScore1 = 1; mainScore2 = 1; }
+    // আগের ৩, ০, ১ করে দেওয়ার অংশটি বাদ দিয়ে, সরাসরি মোট মিনি-পয়েন্ট সেট করে দেওয়া হলো
+    let mainScore1 = mainPts1;
+    let mainScore2 = mainPts2;
     
     const mvpId = document.getElementById('match-mvp-select')?.value || null;
 
     try {
         await db.collection('matches').doc(activeMatchId).update({
             matchups: newMatchups,
-            mainScore1: mainScore1,
-            mainScore2: mainScore2,
+            mainScore1: mainScore1, // ডেটাবেসে সরাসরি মিনি-পয়েন্ট সেভ হবে
+            mainScore2: mainScore2, // ডেটাবেসে সরাসরি মিনি-পয়েন্ট সেভ হবে
             mvpId: mvpId,
             status: 'completed'
         });
         closeModal('modal-generic');
         notify('Results & Player Stats Saved!', 'check-circle');
     } catch(e) { notify('Save failed', 'x-circle'); }
-}
-
-async function confirmSwap() {
-    const matchId = state.swapMatchId;
-    const match = state.matches.find(m => m.id === matchId);
-    if (!match) return;
-
-    const selected = Array.from(document.querySelectorAll('input[name="swap-player"]:checked')).map(i => i.value);
-    if (selected.length !== 2) return notify('Select exactly 2 players to swap', 'alert-circle');
-
-    // Swap their opponent assignments
-    try {
-        const updatedMatches = state.matches.map(m => {
-            if (m.id === matchId) {
-                const newM = {...m};
-                if (newM.player1Id === selected[0]) newM.player1Id = selected[1];
-                else if (newM.player1Id === selected[1]) newM.player1Id = selected[0];
-                if (newM.player2Id === selected[0]) newM.player2Id = selected[1];
-                else if (newM.player2Id === selected[1]) newM.player2Id = selected[0];
-                newM.swapUsed = true;
-                return newM;
-            }
-            return m;
-        });
-
-        const matchRef = db.collection('matches').doc(matchId);
-        const swapped = updatedMatches.find(m => m.id === matchId);
-        await matchRef.update({ player1Id: swapped.player1Id, player2Id: swapped.player2Id, swapUsed: true });
-        closeModal('modal-swap');
-        notify('Swap applied!', 'check-circle');
-    } catch(e) {
-        notify('Swap failed', 'x-circle');
-    }
 }
 
 // ==================== BIDDING (VIEWER) ====================
@@ -1711,8 +1967,7 @@ function updatePlayerBidUI() {
     const idle = document.getElementById('p-bid-idle');
     const active = document.getElementById('p-bid-active');
     const premiumCard = document.getElementById('p-premium-bid-card');
-    
-    if (!session || session.status !== 'active') {
+    if (!state.settings.isBiddingOpen || !session || session.status !== 'active') {
         banner?.classList.add('hidden');
         idle.classList.remove('hidden');
         active.classList.add('hidden');
@@ -1953,15 +2208,19 @@ function renderManagerActivePlayer(cardEl, cp, bidAmt, teamName, session, stateT
             updateCountdownUI('m-countdown-ring', 'm-countdown-num', session);
         }
         
-// Logic for enabling/disabling bid buttons based on budget
+// Logic for enabling/disabling bid buttons based on budget & reserve rules
 const u = state.currentUser;
 const fresh = state.managers.find(m => m.id === u.id) || u;
 const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
 const squad = state.players.filter(p => p.teamId === u.id);
 
-// Fixed: Removed the - 1
 const maxP = (state.settings.maxPlayers || 6);
-const canBid = fresh.paymentStatus === 'approved' && budget > 0 && squad.length < maxP;
+const baseBid = state.settings.baseBid || 50;
+const remainingSlotsAfterThis = Math.max(0, maxP - squad.length - 1);
+const requiredReserve = remainingSlotsAfterThis * baseBid;
+const maxAllowedBid = budget - requiredReserve;
+
+const canBid = fresh.paymentStatus === 'approved' && squad.length < maxP && session.currentBid <= maxAllowedBid;
 
 bidButtons.style.opacity = (!canBid || session.held) ? '0.4' : '1';
 bidButtons.style.pointerEvents = (!canBid || session.held) ? 'none' : 'auto';
@@ -1996,40 +2255,91 @@ function updateCountdownUI(ringId, numId, session) {
 async function placeBid(increment) {
     const session = state.bidSession;
     if (!session || session.status !== 'active' || session.held) return notify('Cannot bid now', 'x');
+    
     const u = state.currentUser;
     const fresh = state.managers.find(m => m.id === u.id) || u;
-    const newBid = (session.currentBid || 0) + increment;
     const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
-
-    if (newBid > budget) return notify('Insufficient budget!', 'alert-circle');
+    const baseBid = state.settings.baseBid || 50;
+    
+    let newBid;
+    // Rule 1: Allow exact base price bid if no one has bid yet
+    if (!session.currentBidder) {
+        newBid = session.currentBid;
+        if (increment > baseBid) {
+            newBid += (increment - baseBid);
+        }
+    } else {
+        newBid = (session.currentBid || 0) + increment;
+    }
+    
+    // Rule 2: Calculate mandatory reserve budget for remaining slots
+    const squad = state.players.filter(p => p.teamId === u.id);
+    const maxP = state.settings.maxPlayers || 6;
+    const remainingSlotsAfterThis = Math.max(0, maxP - squad.length - 1);
+    const requiredReserve = remainingSlotsAfterThis * baseBid;
+    const maxAllowedBid = budget - requiredReserve;
+    
+    if (newBid > maxAllowedBid) {
+        return notify(`Save ৳${requiredReserve} for your remaining ${remainingSlotsAfterThis} slots! Max bid: ৳${maxAllowedBid}`, 'alert-circle');
+    }
+    
     if (session.currentBidder === u.id) return notify('You already have highest bid!', 'info');
-
+    
     await submitBid(newBid);
 }
 
 async function placeCustomBid() {
     const val = parseInt(document.getElementById('m-custom-bid').value);
     if (!val || val <= 0) return notify('Enter valid amount', 'alert-circle');
+    
     const session = state.bidSession;
     if (!session) return;
+    
     const currentBid = session.currentBid || 0;
-    if (val <= currentBid) return notify('Bid must be higher than current bid (৳' + currentBid + ')', 'alert-circle');
+    
+    // Rule 1: Allow bidding exactly the base price if no one has bid yet
+    if (val < currentBid || (val === currentBid && session.currentBidder)) {
+        return notify('Bid must be higher than current bid (৳' + currentBid + ')', 'alert-circle');
+    }
+    
     const u = state.currentUser;
     const fresh = state.managers.find(m => m.id === u.id) || u;
     const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
-    if (val > budget) return notify('Insufficient budget!', 'alert-circle');
+    const baseBid = state.settings.baseBid || 50;
+    
+    // Rule 2: Reserve budget validation
+    const squad = state.players.filter(p => p.teamId === u.id);
+    const maxP = state.settings.maxPlayers || 6;
+    const remainingSlotsAfterThis = Math.max(0, maxP - squad.length - 1);
+    const requiredReserve = remainingSlotsAfterThis * baseBid;
+    const maxAllowedBid = budget - requiredReserve;
+    
+    if (val > maxAllowedBid) {
+        return notify(`Save ৳${requiredReserve} for your remaining ${remainingSlotsAfterThis} slots! Max bid: ৳${maxAllowedBid}`, 'alert-circle');
+    }
+    
     await submitBid(val);
     document.getElementById('m-custom-bid').value = '';
 }
 
 async function submitBid(amount) {
-    const u = state.currentUser;
-    const fresh = state.managers.find(m => m.id === u.id) || u;
-    const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
-    if (amount > budget) {
-        return notify('Action Blocked: Insufficient budget!', 'x-circle');
-    }
-    const currentCountdown = state.bidSession?.countdown ?? 30;
+        const u = state.currentUser;
+        const fresh = state.managers.find(m => m.id === u.id) || u;
+        const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
+        
+        // Rule 2: Final security check for reserve budget
+        const squad = state.players.filter(p => p.teamId === u.id);
+        const maxP = state.settings.maxPlayers || 6;
+        const baseBid = state.settings.baseBid || 50;
+        const remainingSlotsAfterThis = Math.max(0, maxP - squad.length - 1);
+        const requiredReserve = remainingSlotsAfterThis * baseBid;
+        const maxAllowedBid = budget - requiredReserve;
+        
+        if (amount > maxAllowedBid) {
+            return notify(`Action Blocked: Max allowed bid is ৳${maxAllowedBid}`, 'x-circle');
+        }
+        
+        const currentCountdown = state.bidSession?.countdown ?? 30;
     const newCountdown = Math.min(currentCountdown + 10, 30);
     
     try {
@@ -2113,6 +2423,30 @@ if (ppmInput && ppmInput.value === '') ppmInput.value = s.playersPerMatch || 6;
     
     const bidInput = document.getElementById('a-base-bid');
     if (bidInput && bidInput.value === '') bidInput.value = s.baseBid || 50;
+    const biddingToggleBtn = document.getElementById('a-toggle-bidding-btn');
+if (biddingToggleBtn) {
+    const isOpen = s.isBiddingOpen !== false; // true by default
+    if (isOpen) {
+        biddingToggleBtn.innerHTML = '<i data-lucide="eye-off" class="w-3.5 h-3.5"></i> Hide Bidding';
+        biddingToggleBtn.className = 'px-3 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
+    } else {
+        biddingToggleBtn.innerHTML = '<i data-lucide="eye" class="w-3.5 h-3.5"></i> Show Bidding';
+        biddingToggleBtn.className = 'px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
+    }
+    lucide.createIcons();
+}
+
+// Disable Draw Matches button if matches already exist
+const drawBtn = document.getElementById('btn-draw-matches');
+if (drawBtn) {
+    if (state.matches && state.matches.length > 0) {
+        drawBtn.style.opacity = '0.4';
+        drawBtn.style.pointerEvents = 'none';
+    } else {
+        drawBtn.style.opacity = '1';
+        drawBtn.style.pointerEvents = 'auto';
+    }
+}
 }
 
 async function saveSettings(key) {
@@ -2273,13 +2607,35 @@ async function pickNextPlayer() {
         await db.collection('bidSession').doc('current').update({ playerPool: pool, unsoldPool: [] });
     }
 
-    // Pick random
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const pickedId = pool[randomIndex];
-    const newPool = pool.filter((_, i) => i !== randomIndex);
-    const pickedPlayer = state.players.find(p => p.id === pickedId);
+// ==================== CHEAT LOGIC START ====================
+// আপনার নির্দিষ্ট প্লেয়ারদের আইডি এখানে বসাবেন। যেমন:['SBID1234XYZ', 'SBID9876ABC']
+const cheatPlayerIds = [];
 
-    if (!pickedPlayer) {
+// বর্তমান পুলে থাকা প্লেয়ারদের দুটি ভাগে ভাগ করা হলো
+const normalPlayers = pool.filter(id => !cheatPlayerIds.includes(id));
+const cheatPlayers = pool.filter(id => cheatPlayerIds.includes(id));
+
+let pickedId;
+
+if (normalPlayers.length > 0) {
+    // যদি সাধারণ প্লেয়ার থাকে, তবে তাদের মধ্য থেকে রেন্ডমলি উঠবে
+    pickedId = normalPlayers[Math.floor(Math.random() * normalPlayers.length)];
+} else if (cheatPlayers.length > 0) {
+    // সাধারণ প্লেয়ার শেষ হলে, চিট লিস্টের প্লেয়ারদের মধ্য থেকে উঠবে
+    pickedId = cheatPlayers[Math.floor(Math.random() * cheatPlayers.length)];
+} else {
+    // ফলব্যাক (যদি কোনো কারণে উপরে ম্যাচ না করে)
+    pickedId = pool[Math.floor(Math.random() * pool.length)];
+}
+
+// যে প্লেয়ারটি উঠলো তাকে মূল পুল থেকে বাদ দেওয়া হচ্ছে
+const pickedIndex = pool.indexOf(pickedId);
+const newPool = pool.filter((_, i) => i !== pickedIndex);
+// ==================== CHEAT LOGIC END ====================
+
+const pickedPlayer = state.players.find(p => p.id === pickedId);
+
+if (!pickedPlayer) {
         await db.collection('bidSession').doc('current').update({ playerPool: newPool });
         pickNextPlayer();
         return;
@@ -2712,10 +3068,15 @@ async function removePlayerFromTeam(playerId) {
 
 // ==================== MATCHES (ADMIN) ====================
 async function generateMatches() {
-    const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
-    if (approvedManagers.length < 2) return notify('Need at least 2 teams!', 'alert-circle');
-    
-    const allMatchups = [];
+        // Prevent generating if matches already exist
+        if (state.matches && state.matches.length > 0) {
+            return notify('Matches are already drawn! Clear existing matches to redraw.', 'x-circle');
+        }
+        
+        const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
+        if (approvedManagers.length < 2) return notify('Need at least 2 teams!', 'alert-circle');
+        
+        const allMatchups = [];
     let matchCounter = 1;
     for (let i = 0; i < approvedManagers.length; i++) {
         for (let j = 0; j < approvedManagers.length; j++) {
@@ -2724,12 +3085,13 @@ async function generateMatches() {
                 const t2 = approvedManagers[j];
                 
                 allMatchups.push({
-                    matchNumber: matchCounter++,
-                    team1Id: t1.id,
-                    team2Id: t2.id,
-                    round: `Group Stage`,
-                    status: 'pending_lineup', //
-                    lineup1: [],
+            matchNumber: matchCounter++,
+            team1Id: t1.id,
+            team2Id: t2.id,
+            round: `Group Stage`,
+            status: 'pending_lineup', //
+            isPublic: false, // Match hidden by default
+            lineup1: [],
                     lineup2: [],
                     matchups: [],
                     subbedOut1: [],
@@ -2770,85 +3132,6 @@ async function clearMatches() {
     });
 }
 
-function renderAdminMatches() {
-    const list = document.getElementById('a-matches-list');
-    
-    // 1. SAFETY CHECK: If the HTML container is missing, stop immediately to prevent a crash
-    if (!list) return;
-    
-    // 2. SAFETY CHECK: Ensure state.matches exists and has items before checking length
-    if (!state.matches || !state.matches.length) {
-        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No matches yet. Click Draw Matches.</p>`;
-        return;
-    }
-    
-    // 3. Keep all existing features, UI, and rendering logic exactly the same
-    list.innerHTML = state.matches.map(m => `
-    <div class="match-card">
-        <div class="p-4">
-            <div class="flex items-center justify-between mb-3">
-                <span class="badge ${m.status==='completed'?'badge-emerald':'badge-slate'}">${m.status}</span>
-                <span class="text-[7px] text-slate-500 font-bold">${m.round||''}</span>
-                ${m.status !== 'completed' ? `<button onclick="openResultModal('${m.id}')" class="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-xl uppercase">Result</button>` : ''}
-            </div>
-            ${renderMatchVS(m)}
-        </div>
-    </div>`).join('');
-    
-    lucide.createIcons();
-}
-
-function renderMatchVS(m) {
-    const p1 = m.isTeamMatch ? state.managers.find(mg => mg.id === m.player1Id) : getPlayerById(m.player1Id);
-    const p2 = m.isTeamMatch ? state.managers.find(mg => mg.id === m.player2Id) : getPlayerById(m.player2Id);
-    const p1name = m.isTeamMatch ? (p1?.teamName || 'Team 1') : (p1?.name || 'TBD');
-    const p2name = m.isTeamMatch ? (p2?.teamName || 'Team 2') : (p2?.name || 'TBD');
-    const avatar1 = m.isTeamMatch ? {name: p1name, avatar: p1?.logo} : p1;
-    const avatar2 = m.isTeamMatch ? {name: p2name, avatar: p2?.logo} : p2;
-
-    return `<div class="flex items-center justify-between gap-3">
-        <div class="flex-1 text-center">
-            ${getAvatarUI(avatar1||{name:p1name}, 'w-10', 'h-10', 'rounded-xl mx-auto mb-1')}
-            <div class="text-[8px] font-black text-white truncate uppercase">${p1name}</div>
-        </div>
-        <div class="text-center flex-shrink-0">
-            ${m.status==='completed' ? `<div class="text-lg font-black text-white">${m.score1??0}-${m.score2??0}</div>` : `<div class="text-[10px] font-black text-slate-500">VS</div>`}
-        </div>
-        <div class="flex-1 text-center">
-            ${getAvatarUI(avatar2||{name:p2name}, 'w-10', 'h-10', 'rounded-xl mx-auto mb-1')}
-            <div class="text-[8px] font-black text-white truncate uppercase">${p2name}</div>
-        </div>
-    </div>`;
-}
-
-function openResultModal(matchId) {
-    const m = state.matches.find(x => x.id === matchId);
-    if (!m) return;
-    const p1 = m.isTeamMatch ? state.managers.find(mg => mg.id === m.player1Id) : getPlayerById(m.player1Id);
-    const p2 = m.isTeamMatch ? state.managers.find(mg => mg.id === m.player2Id) : getPlayerById(m.player2Id);
-    document.getElementById('result-match-id').value = matchId;
-    document.getElementById('result-t1-name').textContent = m.isTeamMatch ? (p1?.teamName||'Team 1') : (p1?.name||'P1');
-    document.getElementById('result-t2-name').textContent = m.isTeamMatch ? (p2?.teamName||'Team 2') : (p2?.name||'P2');
-    document.getElementById('result-s1').value = '';
-    document.getElementById('result-s2').value = '';
-    openModal('modal-match-result');
-}
-
-async function saveMatchResult() {
-    const matchId = document.getElementById('result-match-id').value;
-    const s1 = parseInt(document.getElementById('result-s1').value);
-    const s2 = parseInt(document.getElementById('result-s2').value);
-    if (isNaN(s1) || isNaN(s2)) return notify('Enter valid scores', 'alert-circle');
-
-    try {
-        await db.collection('matches').doc(matchId).update({ score1: s1, score2: s2, status: 'completed' });
-        closeModal('modal-match-result');
-        notify('Result saved!', 'check-circle');
-    } catch(e) {
-        notify('Save failed', 'x-circle');
-    }
-}
-
 // ==================== REALTIME SUBSCRIPTIONS ====================
 function subscribeAll() {
     unsubscribers.forEach(u => u());
@@ -2875,11 +3158,12 @@ function subscribeAll() {
         refreshCurrentView();
     }));
 
-    // Settings
-    unsubscribers.push(db.collection('settings').doc('tournament').onSnapshot(snap => {
-        if (snap.exists) state.settings = { ...state.settings, ...snap.data() };
-        refreshCurrentView();
-    }));
+// Settings
+unsubscribers.push(db.collection('settings').doc('tournament').onSnapshot(snap => {
+    if (snap.exists) state.settings = { ...state.settings, ...snap.data() };
+    applyBiddingVisibility();
+    refreshCurrentView();
+}));
 
     // Bid Session
     unsubscribers.push(db.collection('bidSession').doc('current').onSnapshot(snap => {
@@ -3028,12 +3312,8 @@ function renderInfoTab(containerId, searchQuery = '') {
     let html = '';
     
     // --- 1. FRANCHISE TEAMS SECTION ---
+    let teamHtml = '';
     if (managers.length > 0) {
-        html += `<h3 class="text-[11px] font-black text-white uppercase tracking-widest mb-3 flex items-center gap-2 mt-2">
-            <i data-lucide="shield" class="w-4 h-4 text-gold-400"></i> Franchise Teams
-        </h3>
-        <div class="space-y-3 mb-6">`;
-        
         managers.forEach(m => {
             const teamPlayers = players.filter(p => p.teamId === m.id);
             
@@ -3045,12 +3325,17 @@ function renderInfoTab(containerId, searchQuery = '') {
                 (p.deviceName || '').toLowerCase().includes(q)
             );
             
-            if (q !== '' && !teamMatches && matchingPlayers.length === 0) return; // Hide if no match
+            // যদি সার্চে টিমের নাম বা প্লেয়ারের নাম কিছুই না মেলে, তবে টিমটি হাইড থাকবে
+            if (q !== '' && !teamMatches && matchingPlayers.length === 0) return;
+            
             const isExpanded = q !== '' && matchingPlayers.length > 0; // Auto-expand if searched
             const accId = `acc-team-${m.id}`;
             
-            html += `
-            <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all">
+            // সার্চ করলে শুধু ম্যাচ হওয়া প্লেয়ার দেখাবে, অন্যথায় সব প্লেয়ার দেখাবে
+            const displayPlayers = (q !== '' && !teamMatches) ? matchingPlayers : teamPlayers;
+            
+            teamHtml += `
+            <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all mb-3">
                 <!-- Clickable Team Header -->
                 <div class="p-3 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors" onclick="toggleAccordion('${accId}')">
                     ${getAvatarUI({name: m.teamName, avatar: m.logo}, 'w-12', 'h-12', 'rounded-xl border border-gold-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)] flex-shrink-0 bg-slate-800 object-contain')}
@@ -3063,7 +3348,7 @@ function renderInfoTab(containerId, searchQuery = '') {
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <div class="bg-black/40 px-2 py-1 rounded-lg border border-white/5 text-[9px] font-black text-slate-300">
-                            <i data-lucide="users" class="w-3 h-3 inline mb-0.5"></i> ${teamPlayers.length}
+                            <i data-lucide="users" class="w-3 h-3 inline mb-0.5"></i> ${displayPlayers.length}
                         </div>
                         <div class="flex items-center justify-center w-6 h-6 bg-slate-800/50 rounded-full border border-white/5">
                             <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" id="icon-${accId}" class="w-3 h-3 text-slate-400 transition-transform"></i>
@@ -3075,13 +3360,20 @@ function renderInfoTab(containerId, searchQuery = '') {
                 <div id="${accId}" class="accordion-content ${isExpanded ? 'expanded' : ''}">
                     <div class="accordion-inner">
                         <div class="p-3 pt-0 border-t border-white/5 bg-black/40">
-                            ${teamPlayers.length ? `<div class="grid grid-cols-1 gap-2 mt-3">${teamPlayers.map(p => playerInfoCard(p, true, q !== '')).join('')}</div>` : `<p class="text-[9px] text-slate-500 font-bold italic mt-3 text-center py-3 bg-black/20 rounded-xl">No players drafted yet</p>`}
+                            ${displayPlayers.length ? `<div class="grid grid-cols-1 gap-2 mt-3">${displayPlayers.map(p => playerInfoCard(p, true, q !== '')).join('')}</div>` : `<p class="text-[9px] text-slate-500 font-bold italic mt-3 text-center py-3 bg-black/20 rounded-xl">No players drafted yet</p>`}
                         </div>
                     </div>
                 </div>
             </div>`;
         });
-        html += `</div>`;
+    }
+    
+    // যদি কোনো টিম রেন্ডার হয়, তবেই টাইটেলটি দেখাবে
+    if (teamHtml !== '') {
+        html += `<h3 class="text-[11px] font-black text-white uppercase tracking-widest mb-3 flex items-center gap-2 mt-2">
+            <i data-lucide="shield" class="w-4 h-4 text-gold-400"></i> Franchise Teams
+        </h3>
+        <div class="mb-6">${teamHtml}</div>`;
     }
     
     // --- 2. FREE AGENTS / ALL PLAYERS SECTION ---
@@ -3109,7 +3401,130 @@ function renderInfoTab(containerId, searchQuery = '') {
     container.innerHTML = html;
     lucide.createIcons();
 }
+function getPlayerStatsData(playerId) {
+    let played = 0, win = 0, draw = 0, lose = 0, gf = 0, ga = 0, pts = 0;
+    let history =[];
 
+    const completedMatches = state.matches.filter(m => m.status === 'completed');
+    completedMatches.forEach(m => {
+        (m.matchups ||[]).forEach(mu => {
+            let isP1 = mu.p1Id === playerId;
+            let isP2 = mu.p2Id === playerId;
+            if (!isP1 && !isP2) return;
+
+            played++;
+            let myScore = isP1 ? (mu.score1 || 0) : (mu.score2 || 0);
+            let oppScore = isP1 ? (mu.score2 || 0) : (mu.score1 || 0);
+            let oppId = isP1 ? mu.p2Id : mu.p1Id;
+
+            gf += myScore;
+            ga += oppScore;
+
+            if (myScore > oppScore) { win++; pts += 3; }
+            else if (myScore === oppScore) { draw++; pts += 1; }
+            else { lose++; }
+
+            let oppPlayer = state.players.find(pl => pl.id === oppId);
+            let oppTeam = oppPlayer && oppPlayer.teamId ? state.managers.find(mg => mg.id === oppPlayer.teamId) : null;
+            let oppName = oppPlayer ? oppPlayer.name : '--';
+            let oppTeamName = oppTeam ? oppTeam.teamName : 'Free Agent';
+            let matchDate = m.deadline || `Match ${m.matchNumber || '#'}`;
+
+            history.push({
+                myScore, oppScore, oppName, oppTeamName, matchDate
+            });
+        });
+    });
+
+    let gd = gf - ga;
+    let gdStr = gd > 0 ? `+${gd}` : gd;
+
+    return { played, win, draw, lose, gf, ga, gd: gdStr, pts, history };
+}
+
+function generatePlayerProfileStatsHtml(playerId) {
+    const stats = getPlayerStatsData(playerId);
+    
+    let html = `
+    <div class="mt-3 bg-slate-950 rounded-xl border border-white/5 overflow-hidden shadow-inner">
+        <div class="bg-black/50 p-2 border-b border-white/5 flex items-center gap-1.5">
+            <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span class="text-[9px] font-black text-white uppercase tracking-widest">Match Statistics</span>
+        </div>
+        <div class="grid grid-cols-4 gap-px bg-white/5">
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-white">${stats.played}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Played</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-emerald-400">${stats.win}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Won</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-slate-400">${stats.draw}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Drawn</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-rose-400">${stats.lose}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Lost</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-blue-400">${stats.gf}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">GF</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black text-rose-400">${stats.ga}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">GA</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center">
+                <div class="text-[13px] font-black ${stats.gd > 0 ? 'text-emerald-400' : (stats.gd < 0 ? 'text-rose-400' : 'text-slate-400')}">${stats.gd}</div>
+                <div class="text-[6px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">GD</div>
+            </div>
+            <div class="bg-slate-950 p-2 text-center bg-gradient-to-t from-gold-500/10 to-transparent">
+                <div class="text-[14px] font-black text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]">${stats.pts}</div>
+                <div class="text-[6px] text-gold-500/70 font-bold uppercase tracking-widest mt-0.5">Pts</div>
+            </div>
+        </div>
+    </div>
+    `;
+
+    if (stats.history.length > 0) {
+        html += `
+        <div class="mt-3">
+            <span class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 block pl-1">Match History</span>
+            <div class="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+        `;
+        stats.history.slice().reverse().forEach(h => {
+            let resColor = h.myScore > h.oppScore ? 'text-emerald-400' : (h.myScore === h.oppScore ? 'text-slate-300' : 'text-rose-400');
+            let resLetter = h.myScore > h.oppScore ? 'W' : (h.myScore === h.oppScore ? 'D' : 'L');
+            let resBg = h.myScore > h.oppScore ? 'bg-emerald-500/10 border-emerald-500/20' : (h.myScore === h.oppScore ? 'bg-slate-500/20 border-slate-500/30' : 'bg-rose-500/10 border-rose-500/20');
+
+            html += `
+            <div class="flex items-center justify-between p-2 bg-black/40 border border-white/5 rounded-lg shadow-sm">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-6 h-6 flex items-center justify-center rounded-md ${resBg} border flex-shrink-0">
+                        <span class="text-[10px] font-black ${resColor}">${resLetter}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[9px] font-black text-white uppercase truncate flex items-center gap-1.5">
+                            VS ${h.oppName} <span class="text-[6px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 font-bold">${h.oppTeamName}</span>
+                        </div>
+                        <div class="text-[7px] text-slate-500 font-bold mt-0.5 truncate flex items-center gap-1"><i data-lucide="clock" class="w-2.5 h-2.5"></i> ${h.matchDate}</div>
+                    </div>
+                </div>
+                <div class="text-[12px] font-black ${resColor} tracking-widest pl-2 flex-shrink-0">
+                    ${h.myScore} - ${h.oppScore}
+                </div>
+            </div>
+            `;
+        });
+        html += `</div></div>`;
+    } else {
+        html += `<div class="mt-3 text-[8px] text-slate-500 font-bold italic text-center bg-black/30 py-3 rounded-lg border border-white/5">No matches played yet</div>`;
+    }
+
+    return html;
+}
 function playerInfoCard(p, isTeam = false, forceExpand = false) {
     let editedTxt = p.lastEditAt ? `<div class="mt-2 text-[7px] text-rose-400 font-bold flex items-center justify-center gap-1 bg-rose-500/5 py-1.5 rounded-lg border border-rose-500/10"><i data-lucide="history" class="w-2.5 h-2.5"></i> Profile Edited: ${p.lastEditAt.toDate ? p.lastEditAt.toDate().toLocaleString() : 'Recently'}</div>` : '';
     
@@ -3147,18 +3562,20 @@ function playerInfoCard(p, isTeam = false, forceExpand = false) {
                             </span> 
                             <span class="text-[10px] font-black text-emerald-400 tracking-wider break-all">${p.konamiId || '<span class="text-slate-700">N/A</span>'}</span>
                         </div>
-                        <div class="relative z-10">
+
+<div class="relative z-10">
                             <span class="text-[7px] text-slate-500 font-bold uppercase tracking-widest block mb-0.5 flex items-center gap-1">
                                 <i data-lucide="smartphone" class="w-2.5 h-2.5 text-blue-500"></i> Device Name
                             </span> 
                             <span class="text-[10px] font-black text-blue-400 tracking-wider break-all">${p.deviceName || '<span class="text-slate-700">N/A</span>'}</span>
+                        </div> 
                         </div>
-                    </div>
-                    ${editedTxt}
-                </div>
-            </div>
-        </div>
-    </div>`;
+                        ${ editedTxt }
+${ generatePlayerProfileStatsHtml(p.id)}
+</div>
+</div>
+</div>
+</div>`;
 }
 
 function openEditProfileModal() {
@@ -3317,14 +3734,35 @@ function openDraftReport() {
     lucide.createIcons();
 }
 
+// Global helper function for generating Stats list cards
+function generateStatsListHtml(list, type, colorClass, valueKey) {
+    if (list.length === 0) return `<p class="text-[9px] text-slate-500 font-bold italic py-6 text-center bg-slate-900/30 rounded-2xl border border-white/5 border-dashed">No stats available yet</p>`;
+    
+    return list.map((p, i) => {
+        const rankColor = i === 0 ? 'text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
+        const teamName = getTeamName(p.playerObj.teamId) || 'Free Agent';
+        return `
+        <div class="flex items-center gap-3 p-3 bg-slate-900/60 border border-white/5 rounded-[1.2rem] mb-2 hover:bg-slate-800 transition-colors shadow-sm">
+            <div class="w-5 text-[14px] font-black ${rankColor} text-center">${i+1}</div>
+            ${getAvatarUI(p.playerObj, 'w-10', 'h-10', 'rounded-xl border border-white/10 shadow-md object-cover')}
+            <div class="flex-1 min-w-0">
+                <div class="text-[11px] font-black text-white uppercase truncate tracking-wider">${p.playerObj.name}</div>
+                <div class="text-[7px] text-slate-400 font-bold uppercase truncate mt-0.5 flex items-center gap-1"><i data-lucide="shield" class="w-2.5 h-2.5"></i> ${teamName}</div>
+            </div>
+            <div class="flex flex-col items-center justify-center bg-black/50 min-w-[45px] py-1.5 rounded-lg border border-white/5 shadow-inner">
+                <span class="text-[16px] font-black ${colorClass} leading-none">${p[valueKey]}</span>
+                <span class="text-[6px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">${type}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 function renderPlayerStats(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     
-    // ১. সম্পন্ন হওয়া ম্যাচ থেকে অটোমেটিক পয়েন্ট হিসেব করা হচ্ছে
     const stats = {};
     state.players.forEach(p => {
-        // assists এর বদলে matchWins ট্র্যাক করছি
         stats[p.id] = { goals: 0, matchWins: 0, mvps: 0, playerObj: p };
     });
     
@@ -3333,11 +3771,9 @@ function renderPlayerStats(containerId) {
         if (m.mvpId && stats[m.mvpId]) stats[m.mvpId].mvps += 1;
         
         (m.matchups || []).forEach(mu => {
-            // গোল হিসেব
             if (mu.p1Id && stats[mu.p1Id]) stats[mu.p1Id].goals += (mu.score1 || 0);
             if (mu.p2Id && stats[mu.p2Id]) stats[mu.p2Id].goals += (mu.score2 || 0);
             
-            // একক ম্যাচ জয় (1v1 Wins) হিসেব
             if (mu.score1 > mu.score2) {
                 if (mu.p1Id && stats[mu.p1Id]) stats[mu.p1Id].matchWins += 1;
             } else if (mu.score2 > mu.score1) {
@@ -3348,52 +3784,88 @@ function renderPlayerStats(containerId) {
     
     const playersArr = Object.values(stats);
     
-    // সর্বোচ্চ গোল, ম্যাচ জয় এবং MVP আলাদা করে সাজানো হচ্ছে (Top 10)
-    const topScorers = [...playersArr].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals).slice(0, 10);
-    const topWins = [...playersArr].filter(p => p.matchWins > 0).sort((a, b) => b.matchWins - a.matchWins).slice(0, 10);
-    const topMvps = [...playersArr].filter(p => p.mvps > 0).sort((a, b) => b.mvps - a.mvps).slice(0, 10);
+    // Sort all available ranking players
+    const allScorers = [...playersArr].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
+    const allWins = [...playersArr].filter(p => p.matchWins > 0).sort((a, b) => b.matchWins - a.matchWins);
+    const allMvps = [...playersArr].filter(p => p.mvps > 0).sort((a, b) => b.mvps - a.mvps);
     
-    let html = ``;
+    // Limit to Top 3 for default view
+    const topScorers = allScorers.slice(0, 3);
+    const topWins = allWins.slice(0, 3);
+    const topMvps = allMvps.slice(0, 3);
     
-    // কার্ড বানানোর হেল্পার ফাংশন
-    const generateList = (list, type, colorClass, valueKey) => {
-        if (list.length === 0) return `<p class="text-[9px] text-slate-500 font-bold italic py-6 text-center bg-slate-900/30 rounded-2xl border border-white/5 border-dashed">No stats available yet</p>`;
-        
-        return list.map((p, i) => {
-            const rankColor = i === 0 ? 'text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500';
-            const teamName = getTeamName(p.playerObj.teamId) || 'Free Agent';
-            return `
-            <div class="flex items-center gap-3 p-3 bg-slate-900/60 border border-white/5 rounded-[1.2rem] mb-2 hover:bg-slate-800 transition-colors shadow-sm">
-                <div class="w-5 text-[14px] font-black ${rankColor} text-center">${i+1}</div>
-                ${getAvatarUI(p.playerObj, 'w-10', 'h-10', 'rounded-xl border border-white/10 shadow-md object-cover')}
-                <div class="flex-1 min-w-0">
-                    <div class="text-[11px] font-black text-white uppercase truncate tracking-wider">${p.playerObj.name}</div>
-                    <div class="text-[7px] text-slate-400 font-bold uppercase truncate mt-0.5 flex items-center gap-1"><i data-lucide="shield" class="w-2.5 h-2.5"></i> ${teamName}</div>
-                </div>
-                <div class="flex flex-col items-center justify-center bg-black/50 min-w-[45px] py-1.5 rounded-lg border border-white/5 shadow-inner">
-                    <span class="text-[16px] font-black ${colorClass} leading-none">${p[valueKey]}</span>
-                    <span class="text-[6px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">${type}</span>
-                </div>
-            </div>`;
-        }).join('');
-    };
-    
-    // ৩টি ক্যাটাগরির HTML লেআউট
-    html += `
+    let html = `
     <div class="mb-6">
         <h3 class="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="goal" class="w-4 h-4"></i> Golden Boot (Goals)</h3>
-        ${generateList(topScorers, 'Goals', 'text-emerald-400', 'goals')}
+        ${generateStatsListHtml(topScorers, 'Goals', 'text-emerald-400', 'goals')}
+        ${allScorers.length > 3 ? `<button onclick="openAllStatsModal('goals')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-emerald-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allScorers.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
     </div>
     <div class="mb-6">
         <h3 class="text-[11px] font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="swords" class="w-4 h-4"></i> Match Winners (1v1 Wins)</h3>
-        ${generateList(topWins, 'Wins', 'text-blue-400', 'matchWins')}
+        ${generateStatsListHtml(topWins, 'Wins', 'text-blue-400', 'matchWins')}
+        ${allWins.length > 3 ? `<button onclick="openAllStatsModal('wins')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-blue-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-blue-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allWins.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
     </div>
     <div class="mb-2">
         <h3 class="text-[11px] font-black text-gold-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="star" class="w-4 h-4"></i> Most Valuable Player</h3>
-        ${generateList(topMvps, 'MVPs', 'text-gold-400', 'mvps')}
+        ${generateStatsListHtml(topMvps, 'MVPs', 'text-gold-400', 'mvps')}
+        ${allMvps.length > 3 ? `<button onclick="openAllStatsModal('mvps')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-gold-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-gold-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allMvps.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
     </div>`;
     
     container.innerHTML = html;
+    lucide.createIcons();
+}
+
+function openAllStatsModal(type) {
+    const stats = {};
+    state.players.forEach(p => {
+        stats[p.id] = { goals: 0, matchWins: 0, mvps: 0, playerObj: p };
+    });
+    
+    const completedMatches = state.matches.filter(m => m.status === 'completed');
+    completedMatches.forEach(m => {
+        if (m.mvpId && stats[m.mvpId]) stats[m.mvpId].mvps += 1;
+        (m.matchups || []).forEach(mu => {
+            if (mu.p1Id && stats[mu.p1Id]) stats[mu.p1Id].goals += (mu.score1 || 0);
+            if (mu.p2Id && stats[mu.p2Id]) stats[mu.p2Id].goals += (mu.score2 || 0);
+            if (mu.score1 > mu.score2) { if (mu.p1Id && stats[mu.p1Id]) stats[mu.p1Id].matchWins += 1; }
+            else if (mu.score2 > mu.score1) { if (mu.p2Id && stats[mu.p2Id]) stats[mu.p2Id].matchWins += 1; }
+        });
+    });
+    
+    const playersArr = Object.values(stats);
+    let list = [];
+    let title = '';
+    let colorClass = '';
+    let valueKey = '';
+    let typeLabel = '';
+    
+    if (type === 'goals') {
+        list = playersArr.filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
+        title = '<i data-lucide="goal" class="w-4 h-4 text-emerald-400 inline mb-0.5"></i> Golden Boot List';
+        colorClass = 'text-emerald-400';
+        valueKey = 'goals';
+        typeLabel = 'Goals';
+    } else if (type === 'wins') {
+        list = playersArr.filter(p => p.matchWins > 0).sort((a, b) => b.matchWins - a.matchWins);
+        title = '<i data-lucide="swords" class="w-4 h-4 text-blue-400 inline mb-0.5"></i> Match Winners List';
+        colorClass = 'text-blue-400';
+        valueKey = 'matchWins';
+        typeLabel = 'Wins';
+    } else if (type === 'mvps') {
+        list = playersArr.filter(p => p.mvps > 0).sort((a, b) => b.mvps - a.mvps);
+        title = '<i data-lucide="star" class="w-4 h-4 text-gold-400 inline mb-0.5"></i> MVP Ranking List';
+        colorClass = 'text-gold-400';
+        valueKey = 'mvps';
+        typeLabel = 'MVPs';
+    }
+    
+    const html = generateStatsListHtml(list, typeLabel, colorClass, valueKey);
+    
+    document.getElementById('generic-modal-title').innerHTML = title;
+    document.getElementById('generic-modal-body').innerHTML = `<div class="space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-2">${html}</div>`;
+    document.getElementById('generic-modal-btn').classList.add('hidden'); // We only need it for viewing
+    
+    openModal('modal-generic');
     lucide.createIcons();
 }
 
@@ -3413,4 +3885,313 @@ function toggleView(tabPrefix, view) {
     staBtn.className = view === 'stats' ? `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg ${mainThemeColor} text-white transition-all tracking-widest` : `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg text-slate-500 hover:text-white transition-all tracking-widest`;
     
     if (view === 'stats') renderPlayerStats(`${tabPrefix}-stats-container`);
+}
+
+// ==================== BIDDING PHASE VISIBILITY LOGIC ====================
+async function toggleBiddingPhase() {
+    // ডিফল্টভাবে true থাকে। currentStatus বের করে উল্টে (toggle) দেওয়া হচ্ছে।
+    const currentStatus = state.settings.isBiddingOpen !== false;
+    const newStatus = !currentStatus;
+    
+    try {
+        await db.collection('settings').doc('tournament').set({ isBiddingOpen: newStatus }, { merge: true });
+        notify(newStatus ? 'Bidding Phase Unlocked & Visible!' : 'Bidding Phase Locked & Hidden!', 'check-circle');
+    } catch (e) {
+        notify('Failed to update visibility setting', 'x-circle');
+    }
+}
+
+function applyBiddingVisibility() {
+    const isOpen = state.settings.isBiddingOpen !== false; // true by default
+    
+    // Player UI Updates
+    const pNavBid = document.getElementById('pnav-bid');
+    
+    if (pNavBid) {
+        // ফ্লেক্স লেআউট ঠিক রাখার জন্য none এবং flex ব্যবহার করা হলো
+        pNavBid.style.display = isOpen ? 'flex' : 'none';
+    }
+    
+    if (!isOpen && state.role === 'player') {
+        // প্লেয়ার যদি বিডিং ট্যাবে থাকে এবং তখন অ্যাডমিন হাইড করে দেয়, তবে তাকে হোমে পাঠিয়ে দেওয়া হবে
+        const pTabBid = document.getElementById('p-tab-bid');
+        if (pTabBid && !pTabBid.classList.contains('hidden')) {
+            switchPTab('home');
+            notify('Bidding phase has ended!', 'info');
+        }
+    }
+}
+
+// ==================== PREMIUM LINEUP PREVIEW (FOR SCREENSHOTS) ====================
+function openLineupPreview(matchId) {
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m) return;
+    
+    const t1 = state.managers.find(mg => mg.id === m.team1Id);
+    const t2 = state.managers.find(mg => mg.id === m.team2Id);
+    
+    let html = `
+    <!-- Premium Background Glow Effects -->
+    <div class="absolute top-[0%] left-[-20%] w-[140%] h-[50%] bg-gradient-to-br from-blue-600/10 via-emerald-600/5 to-transparent blur-[80px] pointer-events-none"></div>
+    <div class="absolute bottom-[0%] right-[-20%] w-[140%] h-[50%] bg-gradient-to-tl from-gold-600/10 via-rose-600/5 to-transparent blur-[80px] pointer-events-none"></div>
+    
+    <div class="relative z-10 w-full flex flex-col items-center mt-14">
+        <!-- Tournament Header -->
+        <div class="text-center mb-8">
+            <h2 class="text-[16px] font-black text-white uppercase tracking-[0.4em] mb-2 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">SLC BID TOURNAMENT</h2>
+            <div class="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-5 py-1.5 rounded-full text-[10px] font-black text-gold-400 tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                <i data-lucide="swords" class="w-3.5 h-3.5"></i> Match ${m.matchNumber || '#'} • Official Lineup
+            </div>
+        </div>
+
+        <!-- Teams VS Area -->
+        <div class="flex items-start justify-between w-full mb-10 relative px-2">
+            <div class="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-black text-slate-700 italic opacity-40 tracking-[0.2em] z-0">VS</div>
+            
+            <!-- Team 1 (Home) -->
+            <div class="flex flex-col items-center w-[42%] text-center relative z-10">
+                <div class="relative w-20 h-20 mb-3">
+                    <div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-xl animate-pulse"></div>
+                    ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'rounded-2xl border-2 border-blue-400/50 shadow-[0_0_25px_rgba(59,130,246,0.4)] object-contain bg-slate-900 relative z-10')}
+                </div>
+                <div class="text-[13px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t1?.teamName || 'TBD'}</div>
+                <div class="text-[9px] text-blue-400 font-black uppercase mt-1.5 tracking-[0.2em] bg-blue-500/10 px-3 py-0.5 rounded-md border border-blue-500/20">HOME</div>
+            </div>
+            
+            <!-- Team 2 (Away) -->
+            <div class="flex flex-col items-center w-[42%] text-center relative z-10">
+                <div class="relative w-20 h-20 mb-3">
+                    <div class="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl animate-pulse"></div>
+                    ${getAvatarUI({name: t2?.teamName, avatar: t2?.logo}, 'w-full', 'h-full', 'rounded-2xl border-2 border-emerald-400/50 shadow-[0_0_25px_rgba(16,185,129,0.4)] object-contain bg-slate-900 relative z-10')}
+                </div>
+                <div class="text-[13px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t2?.teamName || 'TBD'}</div>
+                <div class="text-[9px] text-emerald-400 font-black uppercase mt-1.5 tracking-[0.2em] bg-emerald-500/10 px-3 py-0.5 rounded-md border border-emerald-500/20">AWAY</div>
+            </div>
+        </div>
+
+        <!-- Players Lineup Grid -->
+        <div class="w-full space-y-3 relative z-10">
+    `;
+    
+    const maxLen = Math.max((m.lineup1 || []).length, (m.lineup2 || []).length);
+    for (let i = 0; i < maxLen; i++) {
+        const p1 = state.players.find(p => p.id === m.lineup1[i]);
+        const p2 = state.players.find(p => p.id === m.lineup2[i]);
+        
+        html += `
+        <div class="flex items-stretch justify-between w-full bg-slate-900/80 border border-white/10 rounded-[1.2rem] overflow-hidden shadow-2xl backdrop-blur-md relative">
+            
+            <!-- Player 1 Side -->
+            <div class="flex items-center gap-2.5 p-2.5 w-[46%] bg-gradient-to-r from-blue-900/30 to-transparent relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+                ${getAvatarUI(p1, 'w-10', 'h-10', 'rounded-xl border border-blue-500/40 object-cover flex-shrink-0 shadow-md bg-slate-800')}
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] font-black text-white uppercase truncate tracking-wide">${p1?.name || 'Pending'}</div>
+                    <div class="text-[7px] text-blue-300 font-bold truncate mt-0.5 tracking-widest flex items-center gap-1"><i data-lucide="gamepad-2" class="w-2 h-2"></i> ${p1?.konamiId || 'N/A'}</div>
+                </div>
+            </div>
+            
+            <!-- Center Rank Divider -->
+            <div class="w-[8%] flex items-center justify-center bg-black/60 border-x border-white/10 z-10 shadow-inner">
+                <span class="text-[11px] font-black text-gold-500 drop-shadow-[0_0_5px_rgba(245,158,11,0.6)]">${i+1}</span>
+            </div>
+
+            <!-- Player 2 Side -->
+            <div class="flex items-center gap-2.5 p-2.5 w-[46%] bg-gradient-to-l from-emerald-900/30 to-transparent flex-row-reverse text-right relative">
+                <div class="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+                ${getAvatarUI(p2, 'w-10', 'h-10', 'rounded-xl border border-emerald-500/40 object-cover flex-shrink-0 shadow-md bg-slate-800')}
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] font-black text-white uppercase truncate tracking-wide">${p2?.name || 'Pending'}</div>
+                    <div class="text-[7px] text-emerald-300 font-bold truncate mt-0.5 tracking-widest flex items-center justify-end gap-1">${p2?.konamiId || 'N/A'} <i data-lucide="gamepad-2" class="w-2 h-2"></i></div>
+                </div>
+            </div>
+            
+        </div>`;
+    }
+    
+    html += `
+        </div>
+        
+        <!-- Footer Branding -->
+        <div class="mt-10 text-center opacity-60">
+            <img src="logo.png" class="w-10 h-10 mx-auto mb-3 grayscale contrast-125 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" alt="" onerror="this.style.display='none'">
+            <p class="text-[7px] font-black text-slate-400 uppercase tracking-[0.4em]">Synthex Legion Chronicles</p>
+            <p class="text-[6px] font-bold text-slate-600 mt-1 uppercase tracking-widest">Official eFootball Tournament</p>
+        </div>
+    </div>`;
+    
+    document.getElementById('lineup-preview-wrapper').innerHTML = html;
+    openModal('modal-lineup-preview');
+    lucide.createIcons();
+}
+
+function openMatchResultPreview(matchId) {
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m) return;
+
+    const t1 = state.managers.find(mg => mg.id === m.team1Id);
+    const t2 = state.managers.find(mg => mg.id === m.team2Id);
+    const mvp = state.players.find(p => p.id === m.mvpId);
+
+    // Find MVP Scoreline dynamically
+    let mvpScore = 0;
+    let mvpOpponentScore = 0;
+    if (mvp && m.matchups) {
+        m.matchups.forEach(mu => {
+            if (mu.p1Id === mvp.id) { mvpScore = mu.score1; mvpOpponentScore = mu.score2; }
+            if (mu.p2Id === mvp.id) { mvpScore = mu.score2; mvpOpponentScore = mu.score1; }
+        });
+    }
+
+    // Dynamic Data from Admin Schedule Settings
+    const matchNum = m.matchNumber || '#';
+    const roundName = m.round ? m.round.toUpperCase() : 'GROUP STAGE';
+    const refereeName = m.referee ? m.referee.toUpperCase() : 'SET BY ADMIN';
+
+    let html = `
+    <!-- Premium Background Glow Effects -->
+    <div class="absolute top-[0%] left-[-20%] w-[140%] h-[50%] bg-gradient-to-br from-blue-600/10 via-emerald-600/5 to-transparent blur-[80px] pointer-events-none"></div>
+    <div class="absolute bottom-[0%] right-[-20%] w-[140%] h-[50%] bg-gradient-to-tl from-gold-600/10 via-rose-600/5 to-transparent blur-[80px] pointer-events-none"></div>
+
+    <div class="relative z-10 w-full flex flex-col items-center mt-8">
+        <!-- Tournament Header & Match Info -->
+        <div class="text-center mb-8 w-full">
+            <h2 class="text-[16px] font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 uppercase tracking-[0.4em] mb-3 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">SLC BID TOURNAMENT</h2>
+            
+            <div class="flex items-center justify-center gap-2 mb-2.5">
+                <span class="bg-black/40 backdrop-blur-md border border-emerald-500/30 px-3 py-1 rounded-md text-[9px] font-black text-emerald-400 tracking-[0.2em] uppercase shadow-[0_0_15px_rgba(16,185,129,0.15)]">MATCH ${matchNum}</span>
+                <span class="bg-black/40 backdrop-blur-md border border-gold-500/30 px-3 py-1 rounded-md text-[9px] font-black text-gold-400 tracking-[0.2em] uppercase shadow-[0_0_15px_rgba(245,158,11,0.15)]">${roundName}</span>
+            </div>
+            
+            <div class="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-[8px] font-black text-slate-300 tracking-widest uppercase border border-slate-700 bg-slate-900/80 shadow-inner mt-1">
+                <i data-lucide="clock" class="w-3 h-3 text-emerald-500"></i> FULL TIME RESULT
+            </div>
+        </div>
+
+        <!-- Teams & Main Score Area -->
+        <div class="flex items-center justify-between w-full mb-2 relative px-2">
+            <!-- Team 1 -->
+            <div class="flex flex-col items-center w-[35%] text-center relative z-10">
+                <div class="relative w-16 h-16 mb-2">
+                    <div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-xl"></div>
+                    ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'rounded-2xl border border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] object-contain bg-slate-900 relative z-10')}
+                </div>
+                <div class="text-[11px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t1?.teamName || 'TBD'}</div>
+            </div>
+
+            <!-- Center Score -->
+            <div class="flex flex-col items-center w-[30%] relative z-10">
+                <div class="flex items-center justify-center gap-3">
+                    <span class="text-4xl font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)] tracking-tighter">${m.mainScore1 || 0}</span>
+                    <span class="text-lg font-black text-slate-600">-</span>
+                    <span class="text-4xl font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)] tracking-tighter">${m.mainScore2 || 0}</span>
+                </div>
+            </div>
+
+            <!-- Team 2 -->
+            <div class="flex flex-col items-center w-[35%] text-center relative z-10">
+                <div class="relative w-16 h-16 mb-2">
+                    <div class="absolute inset-0 bg-emerald-500/20 rounded-2xl blur-xl"></div>
+                    ${getAvatarUI({name: t2?.teamName, avatar: t2?.logo}, 'w-full', 'h-full', 'rounded-2xl border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.3)] object-contain bg-slate-900 relative z-10')}
+                </div>
+                <div class="text-[11px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t2?.teamName || 'TBD'}</div>
+            </div>
+        </div>
+
+        <!-- Premium Highlighted MVP Section (With Score) -->
+        ${mvp ? `
+        <div class="w-full max-w-[90%] mx-auto mt-4 mb-6 relative">
+            <div class="absolute inset-0 bg-gold-500/20 blur-2xl rounded-full animate-pulse"></div>
+            <div class="bg-gradient-to-r from-gold-900/60 via-black/80 to-gold-900/60 border border-gold-500/40 rounded-[1.5rem] p-3 relative z-10 flex items-center justify-between shadow-[0_0_25px_rgba(245,158,11,0.3)] backdrop-blur-md">
+                <div class="flex items-center gap-3 pl-2">
+                    ${getAvatarUI(mvp, 'w-12', 'h-12', 'rounded-xl border border-gold-400 shadow-[0_0_15px_rgba(245,158,11,0.5)] object-cover bg-slate-900')}
+                    <div>
+                        <div class="text-[13px] font-black text-white uppercase tracking-wider">${mvp.name}</div>
+                        <div class="text-[7px] text-gold-400 font-black uppercase tracking-[0.2em] mt-0.5 flex items-center gap-1"><i data-lucide="star" class="w-2.5 h-2.5"></i> Man of the Match</div>
+                    </div>
+                </div>
+                <!-- MVP Score Block -->
+                <div class="pr-4 flex flex-col items-center justify-center border-l border-gold-500/20 pl-4 h-full">
+                    <span class="text-[7px] text-gold-500/70 font-black uppercase tracking-widest mb-0.5">Score</span>
+                    <span class="text-[16px] font-black text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)] leading-none">${mvpScore} - ${mvpOpponentScore}</span>
+                </div>
+            </div>
+        </div>
+        ` : '<div class="h-6"></div>'}
+
+        <!-- Players Matchups Grid -->
+        <div class="w-full space-y-2 relative z-10 px-2">
+    `;
+
+    const maxLen = Math.max((m.lineup1 || []).length, (m.lineup2 ||[]).length);
+    for (let i = 0; i < maxLen; i++) {
+        const p1Id = m.matchups?.[i]?.p1Id || m.lineup1[i];
+        const p2Id = m.matchups?.[i]?.p2Id || m.lineup2[i];
+        
+        const p1 = state.players.find(p => p.id === p1Id);
+        const p2 = state.players.find(p => p.id === p2Id);
+        
+        const s1 = m.matchups?.[i]?.score1 || 0;
+        const s2 = m.matchups?.[i]?.score2 || 0;
+        
+        const p1Color = s1 > s2 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]' : (s1 === s2 ? 'text-slate-300' : 'text-slate-500');
+        const p2Color = s2 > s1 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]' : (s1 === s2 ? 'text-slate-300' : 'text-slate-500');
+
+        html += `
+        <div class="flex items-center justify-between w-full bg-slate-900/60 border border-white/10 rounded-xl overflow-hidden shadow-lg backdrop-blur-md relative p-2">
+            <!-- Player 1 Side -->
+            <div class="flex items-center gap-2 w-[38%]">
+                ${getAvatarUI(p1, 'w-8', 'h-8', 'rounded-lg border border-white/10 object-cover flex-shrink-0 bg-slate-800')}
+                <div class="text-[9px] font-black text-white uppercase truncate tracking-wide">${p1?.name || '--'}</div>
+            </div>
+            
+            <!-- Scores -->
+            <div class="flex items-center justify-center gap-2.5 w-[24%] bg-black/40 py-1.5 rounded-lg border border-white/5 shadow-inner">
+                <span class="text-[13px] font-black ${p1Color}">${s1}</span>
+                <span class="text-[7px] font-black text-slate-600">VS</span>
+                <span class="text-[13px] font-black ${p2Color}">${s2}</span>
+            </div>
+
+            <!-- Player 2 Side -->
+            <div class="flex items-center justify-end gap-2 w-[38%] text-right">
+                <div class="text-[9px] font-black text-white uppercase truncate tracking-wide">${p2?.name || '--'}</div>
+                ${getAvatarUI(p2, 'w-8', 'h-8', 'rounded-lg border border-white/10 object-cover flex-shrink-0 bg-slate-800')}
+            </div>
+        </div>`;
+    }
+
+    html += `
+        </div>
+        
+        <!-- Premium Footer & Referee Info -->
+        <div class="mt-10 w-full relative z-10 px-4 pb-6">
+            
+            <!-- Professional Referee Banner -->
+            <div class="w-full bg-gradient-to-r from-slate-900/40 via-slate-800/80 to-slate-900/40 border border-white/10 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-1.5 mb-6 shadow-xl backdrop-blur-md relative overflow-hidden">
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
+                <span class="text-[8px] text-slate-400 font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 relative z-10">
+                    <i data-lucide="flag" class="w-3.5 h-3.5 text-emerald-400"></i> OFFICIAL MATCH REFEREE
+                </span>
+                <span class="text-[14px] text-white font-black uppercase tracking-[0.1em] relative z-10 drop-shadow-md">
+                    ${refereeName}
+                </span>
+            </div>
+
+            <!-- Footer Branding -->
+            <div class="text-center opacity-90 relative">
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-16 bg-emerald-500/10 blur-xl rounded-full pointer-events-none"></div>
+                <img src="logo.png" class="w-12 h-12 mx-auto mb-3 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] relative z-10" alt="" onerror="this.style.display='none'">
+                <p class="text-[10px] font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-300 to-white uppercase tracking-[0.4em] relative z-10 drop-shadow-md">Synthex Legion Chronicles</p>
+                <div class="flex items-center justify-center gap-3 mt-3 relative z-10">
+                    <div class="h-[1px] w-10 bg-gradient-to-r from-transparent to-slate-500"></div>
+                    <p class="text-[6px] font-bold text-emerald-400 uppercase tracking-[0.2em]">Official eFootball Match Result</p>
+                    <div class="h-[1px] w-10 bg-gradient-to-l from-transparent to-slate-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.getElementById('lineup-preview-wrapper').innerHTML = html;
+    openModal('modal-lineup-preview');
+    lucide.createIcons();
 }
