@@ -258,6 +258,31 @@ display: flex; align-items: center; gap-3 gap;
 .accordion-inner {
     overflow: hidden;
 }
+/* --- News Ticker Animation --- */
+.ticker-wrapper {
+    overflow: hidden;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+.ticker-content {
+    display: inline-flex;
+    gap: 1.5rem;
+    animation: tickerScroll 25s linear infinite;
+    padding-left: 100%;
+}
+.ticker-content:hover {
+    animation-play-state: paused;
+}
+@keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
 /* --- Dynamic Island Header Styling --- */
 .dynamic-island-header {
     background: rgba(15, 23, 42, 0.75);
