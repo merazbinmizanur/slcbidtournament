@@ -1,3 +1,24 @@
+const CURRENT_APP_VERSION = "1.0.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+
+function checkAppVersion() {
+    const savedVersion = localStorage.getItem('slc_app_version');
+    
+    if (savedVersion !== CURRENT_APP_VERSION) {
+        // নতুন ভার্সন পাওয়া গেছে
+        console.log(`Updating App: ${savedVersion} -> ${CURRENT_APP_VERSION}`);
+        
+        // নতুন ভার্সন সেভ করা হচ্ছে
+        localStorage.setItem('slc_app_version', CURRENT_APP_VERSION);
+        
+        // ফোর্স রিলোড (ক্যাশ ক্লিয়ার সহ)
+        if (savedVersion) { // প্রথমবার লোড হলে রিলোড হবে না, শুধুমাত্র আপডেট হলে হবে
+            window.location.reload(true);
+        }
+    }
+}
+checkAppVersion();
+
+
 // ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
     apiKey: "AIzaSyBVw-llKk9Ia2yGMNI4t3awkX_RaNApNjQ",
@@ -38,7 +59,42 @@ let state = {
 let confirmCallback = null;
 let unsubscribers = [];
 let paymentContext = null; // 'player' | 'manager'
-
+// ==================== SOUND & HAPTICS ENGINE ====================
+const SFX = {
+    enabled: true,
+    sounds: {
+        // ফ্রি এবং কপিরাইট-ফ্রি সাউন্ড লিংক ব্যবহার করা হয়েছে
+        click: new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3'),
+        bid: new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3'), // কয়েন/বিড সাউন্ড
+        sold: new Audio('https://assets.mixkit.co/active_storage/sfx/464/464-preview.mp3'), // হাতুড়ির (Gavel) সাউন্ড
+        error: new Audio('https://assets.mixkit.co/active_storage/sfx/2954/2954-preview.mp3'), // এরর বাজার
+        success: new Audio('https://assets.mixkit.co/active_storage/sfx/1085/1085-preview.mp3') // সাকসেস নোটিফিকেশন
+    },
+    play: function(type) {
+        if (!this.enabled) return;
+        try {
+            const audio = this.sounds[type].cloneNode(); // ওভারল্যাপিং সাউন্ড প্লে করার জন্য
+            audio.volume = (type === 'click') ? 0.2 : 0.8;
+            audio.play().catch(e => console.log('Audio blocked by browser. User interaction needed.'));
+        } catch (e) {}
+    },
+    vibrate: function(pattern) {
+        if (!this.enabled) return;
+        if (navigator.vibrate) {
+            try { navigator.vibrate(pattern); } catch (e) {}
+        }
+    },
+    toggle: function() {
+        this.enabled = !this.enabled;
+        const iconEl = document.getElementById('sfx-icon');
+        if (iconEl) {
+            iconEl.setAttribute('data-lucide', this.enabled ? 'volume-2' : 'volume-x');
+            iconEl.className = this.enabled ? 'w-4 h-4 text-emerald-400' : 'w-4 h-4 text-rose-400';
+            lucide.createIcons();
+        }
+        notify(this.enabled ? 'Sound & Haptics Enabled' : 'Sound & Haptics Muted', this.enabled ? 'volume-2' : 'volume-x');
+    }
+};
 // ==================== KONAMI ID VALIDATION ====================
 function cleanKonamiId(idStr) {
     // শুধু নাম্বার (0-9) রেখে বাকি সব (অক্ষর, হাইফেন, স্পেস) রিমুভ করে দিবে
@@ -94,6 +150,18 @@ function notify(msg, icon = 'info') {
     toast.classList.add('animate-pop-in');
     clearTimeout(toast._t);
     toast._t = setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('animate-pop-in'); }, 3200);
+
+    // --- Sound & Haptic Logic ---
+    if (icon === 'x-circle' || icon === 'alert-circle' || icon === 'x' || icon === 'shield-x' || icon === 'lock') {
+        SFX.play('error');
+        SFX.vibrate([50, 50, 50]); // এররের জন্য কাঁপুনি
+    } else if (icon === 'check-circle' || icon === 'zap') {
+        SFX.play('success');
+        SFX.vibrate([100, 50, 100]); // সাকসেসের জন্য কাঁপুনি
+    } else if (icon !== 'volume-2' && icon !== 'volume-x') {
+        SFX.play('click');
+        SFX.vibrate(30); // সাধারণ নোটিফিকেশনের জন্য হালকা কাঁপুনি
+    }
 }
 
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); lucide.createIcons(); }
@@ -187,7 +255,13 @@ function switchAuthTab(tab) {
 
 async function registerPlayer() {
     const btn = window.event ? window.event.target.closest('button') : null;
-    const name = document.getElementById('p-name').value.trim();
+    // Check Registration Deadline
+    if (state.settings && state.settings.registrationDeadline) {
+        if (new Date().getTime() > state.settings.registrationDeadline) {
+            return notify('Registration is permanently closed! Deadline has passed.', 'lock');
+        }
+    }
+   const name = document.getElementById('p-name').value.trim();
     const fb = document.getElementById('p-fb').value.trim();
     const phone = document.getElementById('p-phone').value.trim();
     const avatar = document.getElementById('p-avatar').value.trim();
@@ -264,6 +338,12 @@ async function loginPlayerWithId(id) {
 
 async function registerManager() {
     const btn = window.event ? window.event.target.closest('button') : null;
+    // Check Registration Deadline
+if (state.settings && state.settings.registrationDeadline) {
+    if (new Date().getTime() > state.settings.registrationDeadline) {
+        return notify('Registration is permanently closed! Deadline has passed.', 'lock');
+    }
+}
     const teamName = document.getElementById('m-team-name').value.trim();
     const logo = document.getElementById('m-logo').value.trim();
     const ownerName = document.getElementById('m-owner-name').value.trim();
@@ -450,6 +530,8 @@ function launchPlayerApp() {
 }
 
 function switchPTab(tab) {
+    SFX.play('click');
+SFX.vibrate(15);
     const tabs =['home', 'bid', 'teams', 'schedule','profile', 'info', 'rules'];
     
     tabs.forEach(t => {
@@ -770,7 +852,7 @@ function renderPlayerProfile() {
                 <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Game Identity</div>
                 <div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${u.konamiId || 'N/A'}</span></div>
                 <div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${u.deviceName || 'N/A'}</span></div>
-                ${u.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Edited: ${u.lastEditAt.toDate ? u.lastEditAt.toDate().toLocaleString() : 'Recently'}</div>` : ''}
+${u.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${u.lastEditAt.toDate ? u.lastEditAt.toDate().toLocaleString() : 'Recently'} ${u.lastEditDetails ? '<br>| ' + u.lastEditDetails : ''}</div>` : ''}
             </div>
             <button onclick="openEditProfileModal()" class="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl text-[9px] font-black uppercase transition-colors border border-emerald-500/30"><i data-lucide="edit-3" class="w-3 h-3 inline"></i> Edit</button>
         </div>
@@ -825,6 +907,8 @@ function launchManagerApp() {
 }
 
 function switchMTab(tab) {
+    SFX.play('click');
+SFX.vibrate(15);
 ['dashboard','squad','matches','standings','profile','info','rules'].forEach(t => {
         document.getElementById(`m-tab-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`mnav-${t}`);
@@ -1081,7 +1165,7 @@ const mPlayer = state.players.find(p => p.id === u.managerPlayerId) || {}; // NE
                 <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Manager's Game Identity</div>
                 <div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${mPlayer.konamiId || 'N/A'}</span></div>
                 <div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${mPlayer.deviceName || 'N/A'}</span></div>
-                ${mPlayer.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Edited: ${mPlayer.lastEditAt.toDate ? mPlayer.lastEditAt.toDate().toLocaleString() : 'Recently'}</div>` : ''}
+${mPlayer.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${mPlayer.lastEditAt.toDate ? mPlayer.lastEditAt.toDate().toLocaleString() : 'Recently'} ${mPlayer.lastEditDetails ? '<br>| ' + mPlayer.lastEditDetails : ''}</div>` : ''}
             </div>
             <button onclick="openEditProfileModal()" class="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl text-[9px] font-black uppercase transition-colors border border-blue-500/30"><i data-lucide="edit-3" class="w-3 h-3 inline"></i> Edit</button>
         </div>
@@ -2402,6 +2486,8 @@ async function submitBid(amount) {
             lastBidAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         notify('Bid placed: ৳' + amount, 'zap');
+        SFX.play('bid');
+SFX.vibrate([30, 50, 30]); // বিড করার ডাবল ভাইব্রেশন
     } catch (e) {
         notify('Bid failed', 'x-circle');
     }
@@ -2417,6 +2503,8 @@ function launchAdminApp() {
 }
 
 function switchATab(tab) {
+    SFX.play('click');
+SFX.vibrate(15);
     const allTabs = ['overview', 'payments', 'bidding', 'players', 'teams', 'matches', 'info'];
     
     // 1. Loop through all tabs safely and toggle UI
@@ -2466,38 +2554,56 @@ function renderAdminOverview() {
     
     const maxPInput = document.getElementById('a-max-players');
     if (maxPInput && maxPInput.value === '') maxPInput.value = s.maxPlayers || 6;
+    
     const ppmInput = document.getElementById('a-players-per-match');
-if (ppmInput && ppmInput.value === '') ppmInput.value = s.playersPerMatch || 6;
+    if (ppmInput && ppmInput.value === '') ppmInput.value = s.playersPerMatch || 6;
     
     const budgetInput = document.getElementById('a-team-budget');
     if (budgetInput && budgetInput.value === '') budgetInput.value = s.teamBudget || 1500;
     
     const bidInput = document.getElementById('a-base-bid');
     if (bidInput && bidInput.value === '') bidInput.value = s.baseBid || 50;
+    
+    // Registration Deadline Show (Error-proof version)
+    try {
+        const dlInput = document.getElementById('a-reg-deadline');
+        if (dlInput) {
+            if (s.registrationDeadline) {
+                const d = new Date(s.registrationDeadline);
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                dlInput.value = d.toISOString().slice(0, 16);
+            } else {
+                dlInput.value = '';
+            }
+        }
+    } catch (error) {
+        console.error("Deadline display error:", error);
+    }
+    
     const biddingToggleBtn = document.getElementById('a-toggle-bidding-btn');
-if (biddingToggleBtn) {
-    const isOpen = s.isBiddingOpen !== false; // true by default
-    if (isOpen) {
-        biddingToggleBtn.innerHTML = '<i data-lucide="eye-off" class="w-3.5 h-3.5"></i> Hide Bidding';
-        biddingToggleBtn.className = 'px-3 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
-    } else {
-        biddingToggleBtn.innerHTML = '<i data-lucide="eye" class="w-3.5 h-3.5"></i> Show Bidding';
-        biddingToggleBtn.className = 'px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
+    if (biddingToggleBtn) {
+        const isOpen = s.isBiddingOpen !== false; // true by default
+        if (isOpen) {
+            biddingToggleBtn.innerHTML = '<i data-lucide="eye-off" class="w-3.5 h-3.5"></i> Hide Bidding';
+            biddingToggleBtn.className = 'px-3 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
+        } else {
+            biddingToggleBtn.innerHTML = '<i data-lucide="eye" class="w-3.5 h-3.5"></i> Show Bidding';
+            biddingToggleBtn.className = 'px-3 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black rounded-xl flex items-center gap-1 transition-all active:scale-95';
+        }
+        lucide.createIcons();
     }
-    lucide.createIcons();
-}
-
-// Disable Draw Matches button if matches already exist
-const drawBtn = document.getElementById('btn-draw-matches');
-if (drawBtn) {
-    if (state.matches && state.matches.length > 0) {
-        drawBtn.style.opacity = '0.4';
-        drawBtn.style.pointerEvents = 'none';
-    } else {
-        drawBtn.style.opacity = '1';
-        drawBtn.style.pointerEvents = 'auto';
+    
+    // Disable Draw Matches button if matches already exist
+    const drawBtn = document.getElementById('btn-draw-matches');
+    if (drawBtn) {
+        if (state.matches && state.matches.length > 0) {
+            drawBtn.style.opacity = '0.4';
+            drawBtn.style.pointerEvents = 'none';
+        } else {
+            drawBtn.style.opacity = '1';
+            drawBtn.style.pointerEvents = 'auto';
+        }
     }
-}
 }
 
 async function saveSettings(key) {
@@ -2524,6 +2630,33 @@ async function saveSettings(key) {
         notify('Save failed', 'x-circle');
     }
 }
+// ====== NEW: Registration Deadline Functions ======
+async function saveRegistrationDeadline() {
+    const val = document.getElementById('a-reg-deadline').value;
+    if (!val) return notify('Please select a date and time!', 'alert-circle');
+    
+    const timestamp = new Date(val).getTime(); // Convert to milliseconds
+    
+    try {
+        await db.collection('settings').doc('tournament').set({ registrationDeadline: timestamp }, { merge: true });
+        state.settings.registrationDeadline = timestamp;
+        notify('Registration Deadline Set!', 'check-circle');
+    } catch (e) {
+        notify('Failed to set deadline', 'x-circle');
+    }
+}
+
+async function clearRegistrationDeadline() {
+    try {
+        await db.collection('settings').doc('tournament').set({ registrationDeadline: null }, { merge: true });
+        state.settings.registrationDeadline = null;
+        document.getElementById('a-reg-deadline').value = '';
+        notify('Deadline Cleared. Registrations are OPEN!', 'check-circle');
+    } catch (e) {
+        notify('Failed to clear deadline', 'x-circle');
+    }
+}
+// ===================================================
 
 function renderAdminPayments() {
     // Players
@@ -2827,6 +2960,8 @@ async function sellPlayer(playerId, managerId, amount) {
     const player = state.players.find(p => p.id === playerId);
     const managerName = manager?.teamName || managerId;
     notify(`${player?.name || 'Player'} SOLD to ${managerName} for ৳${amount}!`, 'check-circle');
+    SFX.play('sold');
+SFX.vibrate([200, 100, 200, 100, 400]); // হাতুড়ি পড়ার ভারী ভাইব্রেশন প্যাটার্ন
 }
 
 async function adminEndBidding() {
@@ -3273,8 +3408,38 @@ function onBidSessionUpdate() {
         updateAdminBidUI();
     }
 }
-
+// Check Deadline UI State
+function applyDeadlineUI() {
+    const banner = document.getElementById('registration-closed-banner');
+    const pSignupBtn = document.getElementById('btn-p-signup');
+    const mSignupBtn = document.getElementById('btn-m-signup');
+    
+    if (state.settings && state.settings.registrationDeadline) {
+        if (new Date().getTime() > state.settings.registrationDeadline) {
+            // Deadline Passed - Hide signup buttons & show banner
+            if (banner) banner.classList.remove('hidden');
+            if (pSignupBtn) pSignupBtn.style.display = 'none';
+            if (mSignupBtn) mSignupBtn.style.display = 'none';
+            
+            // Force switch to login tab if they are currently on signup
+            if (!document.getElementById('p-signup-form').classList.contains('hidden')) {
+                switchAuthTab('p-login');
+            }
+            if (!document.getElementById('m-signup-form').classList.contains('hidden')) {
+                switchAuthTab('m-login');
+            }
+            return;
+        }
+    }
+    
+    // Deadline Not Passed or Cleared - Restore normal UI
+    if (banner) banner.classList.add('hidden');
+    if (pSignupBtn) pSignupBtn.style.display = 'block';
+    if (mSignupBtn) mSignupBtn.style.display = 'block';
+}
 function refreshCurrentView() {
+    applyDeadlineUI();
+    updateNewsTicker();
     if (state.role === 'player') {
         if (state.currentUser) {
             const pIdEl = document.getElementById('p-header-id');
@@ -3563,7 +3728,7 @@ function generatePlayerProfileStatsHtml(playerId) {
     return html;
 }
 function playerInfoCard(p, isTeam = false, forceExpand = false) {
-    let editedTxt = p.lastEditAt ? `<div class="mt-2 text-[7px] text-rose-400 font-bold flex items-center justify-center gap-1 bg-rose-500/5 py-1.5 rounded-lg border border-rose-500/10"><i data-lucide="history" class="w-2.5 h-2.5"></i> Profile Edited: ${p.lastEditAt.toDate ? p.lastEditAt.toDate().toLocaleString() : 'Recently'}</div>` : '';
+    let editedTxt = p.lastEditAt ? `<div class="mt-2 text-[7px] text-rose-400 font-bold flex flex-col items-center justify-center gap-1 bg-rose-500/5 py-1.5 px-2 rounded-lg border border-rose-500/10 text-center"><div class="flex items-center gap-1"><i data-lucide="history" class="w-2.5 h-2.5"></i> Last Edit: ${p.lastEditAt.toDate ? p.lastEditAt.toDate().toLocaleString() : 'Recently'}</div> ${p.lastEditDetails ? '<span class="text-[7px] text-rose-300">| ' + p.lastEditDetails + '</span>' : ''}</div>` : '';
     
     const accId = `acc-player-${p.id}`;
     const isExpanded = forceExpand; // Auto expand if they were found via search
@@ -3629,11 +3794,24 @@ ${ generatePlayerProfileStatsHtml(p.id)}
 function openEditProfileModal() {
     const u = state.currentUser;
     let p;
+    
+    const teamSection = document.getElementById('edit-team-section');
+    const teamNameInput = document.getElementById('edit-team-name');
+    const teamLogoInput = document.getElementById('edit-team-logo');
+    
     // Managers edit their linked Player profile object
     if (state.role === 'manager') {
         p = state.players.find(x => x.id === u.managerPlayerId);
+        
+        // Show Team Edit Section
+        if (teamSection) teamSection.classList.remove('hidden');
+        if (teamNameInput) teamNameInput.value = u.teamName || '';
+        if (teamLogoInput) teamLogoInput.value = u.logo || '';
     } else {
         p = state.players.find(x => x.id === u.id);
+        
+        // Hide Team Edit Section for normal players
+        if (teamSection) teamSection.classList.add('hidden');
     }
     if (!p) return notify('Profile not found', 'x-circle');
     
@@ -3645,52 +3823,85 @@ function openEditProfileModal() {
     document.getElementById('edit-avatar').value = p.avatar || '';
     
     openModal('modal-edit-profile');
+    lucide.createIcons();
 }
 
 async function saveProfileEdit() {
-    const btn = window.event ? window.event.target.closest('button') : null;
-    
-    // নতুন ইনপুট ফিল্ড থেকে ডেটা সংগ্রহ
-    const name = document.getElementById('edit-name').value.trim();
-    const phone = document.getElementById('edit-phone').value.trim();
-    const konamiId = document.getElementById('edit-konami').value.trim();
-    const deviceName = document.getElementById('edit-device').value.trim();
-    const fb = document.getElementById('edit-fb').value.trim();
-    const avatar = document.getElementById('edit-avatar').value.trim();
-    
-    // নাম, ফোন, কোনামি এবং ডিভাইস বাধ্যতামূলক রাখা হয়েছে
-    if (!name || !phone || !konamiId || !deviceName) {
-        return notify('Name, Phone, Konami & Device are required!', 'alert-circle');
+        const btn = window.event ? window.event.target.closest('button') : null;
+        
+        // নতুন ইনপুট ফিল্ড থেকে ডেটা সংগ্রহ
+        const name = document.getElementById('edit-name').value.trim();
+        const phone = document.getElementById('edit-phone').value.trim();
+        const konamiId = document.getElementById('edit-konami').value.trim();
+        const deviceName = document.getElementById('edit-device').value.trim();
+        const fb = document.getElementById('edit-fb').value.trim();
+        const avatar = document.getElementById('edit-avatar').value.trim();
+        
+        // টিম ডেটা (শুধুমাত্র ম্যানেজারদের জন্য)
+        let teamName = "";
+        let teamLogo = "";
+        if (state.role === 'manager') {
+            const teamNameEl = document.getElementById('edit-team-name');
+            const teamLogoEl = document.getElementById('edit-team-logo');
+            if (teamNameEl) teamName = teamNameEl.value.trim();
+            if (teamLogoEl) teamLogo = teamLogoEl.value.trim();
+            
+            if (!teamName) {
+                return notify('Team Name is required!', 'alert-circle');
+            }
+        }
+        
+        // নাম, ফোন, কোনামি এবং ডিভাইস বাধ্যতামূলক রাখা হয়েছে
+        if (!name || !phone || !konamiId || !deviceName) {
+            return notify('Name, Phone, Konami & Device are required!', 'alert-circle');
+        }
+        
+        const u = state.currentUser;
+        const playerId = state.role === 'manager' ? u.managerPlayerId : u.id;
+        
+        toggleBtnLoading(true, btn);
+        const konamiCheck = await checkDuplicateKonami(konamiId, playerId);
+        if (konamiCheck.error) {
+            toggleBtnLoading(false, btn);
+            return notify(konamiCheck.error, 'alert-circle');
+        }
+        
+        try {
+            // বর্তমান ডেটা বের করা হচ্ছে তুলনা করার জন্য
+            const currentPlayer = state.players.find(x => x.id === playerId);
+            let updateData = {
+                name: name,
+                phone: phone,
+                konamiId: konamiId,
+                deviceName: deviceName,
+                fb: fb,
+                avatar: avatar
+            };
+            
+            // চেক করা হচ্ছে Konami ID বা Device Name পরিবর্তন হয়েছে কিনা
+            const konamiChanged = currentPlayer.konamiId !== konamiId;
+            const deviceChanged = currentPlayer.deviceName !== deviceName;
+            
+            if (konamiChanged || deviceChanged) {
+                let logs = [];
+        if (konamiChanged) logs.push(`${currentPlayer.konamiId || 'N/A'} to ${konamiId}`);
+        if (deviceChanged) logs.push(`${currentPlayer.deviceName || 'N/A'} to ${deviceName}`);
+        
+        updateData.lastEditDetails = logs.join(" / ");
+        updateData.lastEditAt = firebase.firestore.FieldValue.serverTimestamp();
     }
     
-const u = state.currentUser;
-const playerId = state.role === 'manager' ? u.managerPlayerId : u.id;
-
-toggleBtnLoading(true, btn);
-const konamiCheck = await checkDuplicateKonami(konamiId, playerId);
-if (konamiCheck.error) {
-    toggleBtnLoading(false, btn);
-    return notify(konamiCheck.error, 'alert-circle');
-}
-
-try {
-        // ফায়ারবেস ডেটাবেসে প্লেয়ারের প্রোফাইল আপডেট
-        await db.collection('players').doc(playerId).update({
-            name: name,
-            phone: phone,
-            konamiId: konamiId,
-            deviceName: deviceName,
-            fb: fb,
-            avatar: avatar,
-            lastEditAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+    // ফায়ারবেস ডেটাবেসে প্লেয়ারের প্রোফাইল আপডেট
+    await db.collection('players').doc(playerId).update(updateData);
         
-        // যদি ম্যানেজার তার প্রোফাইল এডিট করে, তবে ম্যানেজারের ডকুমেন্টেও তার নাম আপডেট করে দেওয়া হবে
-        if (state.role === 'manager') {
-            await db.collection('managers').doc(u.id).update({
-                name: name
-            });
-        }
+// যদি ম্যানেজার তার প্রোফাইল এডিট করে, তবে ম্যানেজারের ডকুমেন্টেও তার নাম, টিমের নাম এবং লোগো আপডেট করে দেওয়া হবে
+if (state.role === 'manager') {
+    await db.collection('managers').doc(u.id).update({
+        name: name,
+        teamName: teamName,
+        logo: teamLogo
+    });
+}
         
         closeModal('modal-edit-profile');
         notify('Profile updated successfully!', 'check-circle');
@@ -4495,4 +4706,98 @@ async function applyAutoLossForSuspendedPlayer(playerId) {
             });
         }
     }
+}
+// ==================== LIVE NEWS TICKER ENGINE ====================
+function updateNewsTicker() {
+    let newsItems =[];
+
+    // 1. Live Auction Alert
+    if (state.settings?.isBiddingOpen && state.bidSession?.status === 'active') {
+        newsItems.push(`<span class="text-rose-400">🔥 LIVE PLAYER AUCTION IS CURRENTLY ONGOING!</span>`);
+    }
+
+    // 2. Latest 3 Sold Players
+    const sortedDrafted = state.players
+        .filter(p => p.teamId && p.bidPrice && p.draftedAt)
+        .sort((a, b) => {
+            let timeA = a.draftedAt?.seconds || 0;
+            let timeB = b.draftedAt?.seconds || 0;
+            return timeB - timeA;
+        })
+        .slice(0, 3);
+        
+    sortedDrafted.forEach(p => {
+        const teamName = getTeamName(p.teamId);
+        newsItems.push(`💰 <span class="text-white">${p.name}</span> SOLD TO <span class="text-blue-400">${teamName}</span> FOR <span class="text-gold-400">৳${p.bidPrice}</span>`);
+    });
+
+    // 3. Latest 3 Match Results
+    const recentMatches = [...state.matches]
+        .reverse() // Fetches the newest matches first
+        .filter(m => m.status === 'completed' && (state.role === 'admin' || m.isPublic))
+        .slice(0, 3);
+        
+    recentMatches.forEach(m => {
+        const t1 = getTeamName(m.team1Id);
+        const t2 = getTeamName(m.team2Id);
+        newsItems.push(`⚔️ RESULT: <span class="text-white">${t1}</span> <span class="text-emerald-400">${m.mainScore1} - ${m.mainScore2}</span> <span class="text-white">${t2}</span>`);
+    });
+
+    // 4. Current Table Topper
+    const topTeam = getTableTopperForTicker();
+    if (topTeam) {
+        newsItems.push(`🏆 TABLE TOPPER: <span class="text-gold-400">${topTeam.name}</span> LEADING WITH <span class="text-white">${topTeam.pts} PTS</span>`);
+    }
+
+    // 5. Fallback News (If tournament hasn't started yet)
+    if (newsItems.length === 0) {
+        newsItems.push(`⚡ WELCOME TO SLC BID TOURNAMENT S14`);
+        newsItems.push(`🛡️ REGISTRATIONS ARE ONGOING. STAY TUNED FOR LIVE UPDATES!`);
+    }
+
+    // Join all items with a styled separator
+    const tickerHtml = newsItems.join(`<span class="text-slate-600 px-3 font-black">|</span>`);
+
+    // Inject to UI
+    const pTicker = document.getElementById('p-news-ticker');
+    const mTicker = document.getElementById('m-news-ticker');
+    const aTicker = document.getElementById('a-news-ticker');
+
+    if (pTicker) pTicker.innerHTML = tickerHtml;
+    if (mTicker) mTicker.innerHTML = tickerHtml;
+    if (aTicker) aTicker.innerHTML = tickerHtml;
+}
+
+// Helper function to calculate the top team for the ticker
+function getTableTopperForTicker() {
+    const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
+    if(approvedManagers.length === 0) return null;
+    
+    const table = {};
+    approvedManagers.forEach(m => { table[m.id] = { name: m.teamName, pts: 0, gd: 0, gf: 0, ga: 0 }; });
+    
+    const completedMatches = state.matches.filter(m => m.status === 'completed');
+    completedMatches.forEach(m => {
+        const t1id = m.team1Id; const t2id = m.team2Id;
+        if (!table[t1id] || !table[t2id]) return;
+        
+        const t1Pts = m.mainScore1 ?? 0;
+        const t2Pts = m.mainScore2 ?? 0;
+        
+        let t1Goals = 0, t2Goals = 0;
+        (m.matchups ||[]).forEach(mu => {
+            t1Goals += (mu.score1 || 0);
+            t2Goals += (mu.score2 || 0);
+        });
+        
+        table[t1id].gf += t1Goals; table[t1id].ga += t2Goals;
+        table[t2id].gf += t2Goals; table[t2id].ga += t1Goals;
+        
+        if (t1Pts > t2Pts) { table[t1id].pts += 3; }
+        else if (t2Pts > t1Pts) { table[t2id].pts += 3; }
+        else { table[t1id].pts += 1; table[t2id].pts += 1; }
+    });
+    
+    const sorted = Object.values(table).sort((a, b) => b.pts - a.pts || ((b.gf - b.ga) - (a.gf - a.ga)) || b.gf - a.gf);
+    return sorted.length > 0 && sorted[0].pts > 0 ? sorted[0] : null;
 }
