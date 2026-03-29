@@ -21,7 +21,7 @@
         }
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css?v=1.0.0">
+   <link rel="stylesheet" href="style.css?v=1.1.0">
 </head>
 <body class="bg-slate-950 text-slate-200 overflow-hidden" id="body-main">
 <!-- Sound Toggle Button -->
@@ -53,14 +53,17 @@
                 <div class="h-[1px] w-16 bg-gradient-to-r from-transparent via-gold-500/50 to-transparent mx-auto mt-2 mb-1"></div>
                 <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Synthex Legion Chronicles</p>
             </div>
-<!-- Registration Closed Banner (Hidden by default) -->
-<div id="registration-closed-banner" class="hidden mb-4 bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-center gap-3">
-    <i data-lucide="lock" class="w-5 h-5 text-rose-400 flex-shrink-0"></i>
-    <div class="text-left">
-        <div class="text-[10px] font-black text-rose-400 uppercase tracking-widest">Registration Closed</div>
-        <div class="text-[8px] text-slate-400 font-bold mt-0.5">The deadline for new registrations has passed</div>
+<!-- Registration Closed Banner (Premium Centered Design) -->
+<div id="registration-closed-banner" class="hidden mb-6 bg-gradient-to-br from-rose-900/30 to-slate-900 border border-rose-500/30 rounded-[1.5rem] p-5 flex flex-col items-center justify-center text-center shadow-[0_0_25px_rgba(244,63,94,0.15)] relative overflow-hidden">
+    <!-- Background Glow Effect -->
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(244,63,94,0.15)_0%,transparent_70%)] pointer-events-none"></div>
+    
+    <div class="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-3 border border-rose-500/20 shadow-inner relative z-10">
+        <i data-lucide="lock" class="w-5 h-5 text-rose-400"></i>
     </div>
-</div
+    <div class="text-[13px] font-black text-rose-400 uppercase tracking-[0.2em] mb-1.5 relative z-10">Registration Closed</div>
+    <div class="text-[9px] text-slate-400 font-bold uppercase tracking-widest relative z-10">The deadline for new registrations has passed</div>
+</div>
 
             <!-- Role Selection -->
             <div id="role-select" class="">
@@ -83,14 +86,23 @@
 
             <!-- Player Auth -->
             <div id="player-auth" class="hidden">
-                <div class="flex items-center gap-2 mb-5">
-                    <button onclick="backToRoles()" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
-                    <div class="flex gap-2 flex-1 bg-slate-950 p-1 rounded-xl border border-white/5">
-                        <button onclick="switchAuthTab('p-login')" id="btn-p-login" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg bg-emerald-600 text-white transition-all">Login</button>
-                        <button onclick="switchAuthTab('p-signup')" id="btn-p-signup" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg text-slate-500 transition-all">Sign Up</button>
-                    </div>
-                </div>
-                <!-- Player Login -->
+<div class="flex items-center gap-3 mb-5">
+    <button onclick="backToRoles()" class="w-10 h-10 flex items-center justify-center bg-slate-950 rounded-xl border border-white/5 text-slate-500 hover:text-white hover:border-white/20 transition-all flex-shrink-0 shadow-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    
+    <!-- Login/Signup Toggle Box -->
+    <div id="p-auth-toggle" class="flex gap-2 flex-1 bg-slate-950 p-1 rounded-xl border border-white/5 shadow-inner">
+        <button onclick="switchAuthTab('p-login')" id="btn-p-login" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg bg-emerald-600 text-white transition-all">Login</button>
+        <button onclick="switchAuthTab('p-signup')" id="btn-p-signup" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg text-slate-500 transition-all">Sign Up</button>
+    </div>
+    
+    <!-- Title (Visible only when Registration is closed) -->
+    <div id="p-auth-title" class="hidden flex-1 text-center pr-10 text-[12px] font-black text-emerald-400 uppercase tracking-[0.2em]">
+        Player Login
+    </div>
+</div>
+               <!-- Player Login -->
                 <div id="p-login-form" class="space-y-4">
                     <input type="text" id="p-login-id" placeholder="Enter ID (e.g. SBID1234XYZ)" class="w-full p-4 rounded-2xl bg-slate-950 border border-white/5 text-white text-xs font-bold outline-none focus:border-emerald-500 uppercase text-center">
                     <button onclick="loginPlayer()" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-transform">LOGIN</button>
@@ -113,13 +125,22 @@
 
             <!-- Manager Auth -->
             <div id="manager-auth" class="hidden">
-                <div class="flex items-center gap-2 mb-5">
-                    <button onclick="backToRoles()" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
-                    <div class="flex gap-2 flex-1 bg-slate-950 p-1 rounded-xl border border-white/5">
-                        <button onclick="switchAuthTab('m-login')" id="btn-m-login" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg bg-blue-600 text-white transition-all">Login</button>
-                        <button onclick="switchAuthTab('m-signup')" id="btn-m-signup" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg text-slate-500 transition-all">Sign Up</button>
-                    </div>
-                </div>
+<div class="flex items-center gap-3 mb-5">
+    <button onclick="backToRoles()" class="w-10 h-10 flex items-center justify-center bg-slate-950 rounded-xl border border-white/5 text-slate-500 hover:text-white hover:border-white/20 transition-all flex-shrink-0 shadow-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    
+    <!-- Login/Signup Toggle Box -->
+    <div id="m-auth-toggle" class="flex gap-2 flex-1 bg-slate-950 p-1 rounded-xl border border-white/5 shadow-inner">
+        <button onclick="switchAuthTab('m-login')" id="btn-m-login" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg bg-blue-600 text-white transition-all">Login</button>
+        <button onclick="switchAuthTab('m-signup')" id="btn-m-signup" class="flex-1 py-2 text-[10px] font-black uppercase rounded-lg text-slate-500 transition-all">Sign Up</button>
+    </div>
+    
+    <!-- Title (Visible only when Registration is closed) -->
+    <div id="m-auth-title" class="hidden flex-1 text-center pr-10 text-[12px] font-black text-blue-400 uppercase tracking-[0.2em]">
+        Manager Login
+    </div>
+</div>
                 <!-- Manager Login -->
                 <div id="m-login-form" class="space-y-4">
                     <input type="text" id="m-login-id" placeholder="Enter Team ID (e.g. SBIDT12X)" class="w-full p-4 rounded-2xl bg-slate-950 border border-white/5 text-white text-xs font-bold outline-none focus:border-blue-500 uppercase text-center">
@@ -186,46 +207,57 @@
 <div class="flex-1 overflow-y-auto custom-scrollbar pt-[116px] pb-[80px]" id="player-content">
         <!-- HOME TAB -->
         <div id="p-tab-home" class="p-4 space-y-4">
-            <!-- Tournament Card -->
-            <div class="tournament-card rounded-[2rem] overflow-hidden relative">
-                <div class="tournament-card-bg"></div>
-                <div class="relative z-10 p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <div class="px-3 py-1 bg-gold-500/20 border border-gold-500/30 rounded-full">
-                            <span class="text-[8px] font-black text-gold-400 uppercase tracking-widest">🏆 Live Tournament</span>
-                        </div>
-                    </div>
-                    <h2 class="text-2xl font-black text-white uppercase italic leading-tight mb-1">SLC BID</h2>
-                    <h3 class="text-lg font-black text-gold-400 uppercase italic leading-tight mb-4">TOURNAMENT</h3>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-4">Synthex Legion Chronicles • eFootball</p>
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                            <div id="p-stat-registered" class="text-lg font-black text-emerald-400">0</div>
-                            <div class="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Registered</div>
-                        </div>
-                        <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                            <div id="p-stat-pending" class="text-lg font-black text-gold-400">0</div>
-                            <div class="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Pending</div>
-                        </div>
-                        <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                            <div id="p-stat-teams" class="text-lg font-black text-blue-400">0</div>
-                            <div class="text-[7px] text-slate-400 font-bold uppercase tracking-widest">Teams</div>
-                        </div>
-                    </div>
-                    <div class="bg-black/30 rounded-xl p-3 border border-white/5 mb-4">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[8px] text-slate-400 font-bold uppercase">Entry Fee</span>
-                            <span class="text-[8px] text-slate-400 font-bold uppercase">Payment</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-black text-white">৳30</span>
-                            <span class="text-[9px] text-emerald-400 font-bold">Bkash / Nagad</span>
-                        </div>
-                    </div>
-                    <!-- Registration Status / Button -->
-                    <div id="p-reg-status-area"></div>
-                </div>
+<!-- Premium Tournament Card Redesign -->
+<div class="tournament-card rounded-[2.5rem] overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-slate-800/60 p-1">
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#0a0f18] to-[#05080f] rounded-[2.4rem] z-0"></div>
+    <div class="tournament-card-bg absolute inset-0 z-0 rounded-[2.4rem]"></div>
+    
+    <div class="relative z-10 p-7">
+        <!-- Live Badge -->
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gold-500/10 border border-gold-500/20 rounded-full mb-6 shadow-[0_0_15px_rgba(245,158,11,0.1)] backdrop-blur-md">
+            <i data-lucide="trophy" class="w-3 h-3 text-gold-400"></i>
+            <span class="text-[9px] font-black text-gold-400 uppercase tracking-[0.15em]">Live Tournament</span>
+        </div>
+        
+        <!-- Titles -->
+        <h2 class="text-4xl font-black text-white uppercase italic leading-none mb-1 tracking-tight drop-shadow-md">SLC BID</h2>
+        <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-amber-500 uppercase italic leading-tight mb-5 drop-shadow-sm">TOURNAMENT</h3>
+        <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.15em] mb-6 flex items-center gap-2">
+            Synthex Legion <span class="w-1 h-1 rounded-full bg-slate-600 block"></span> eFootball
+        </p>
+        
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="p-stat-registered" class="text-2xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] tracking-tighter mb-1">0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Registered</div>
             </div>
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="p-stat-pending" class="text-2xl font-black text-gold-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)] tracking-tighter mb-1">0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Pending</div>
+            </div>
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="p-stat-teams" class="text-2xl font-black text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.3)] tracking-tighter mb-1">0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Teams</div>
+            </div>
+        </div>
+        
+        <!-- Fee Details -->
+        <div class="bg-[#0b121e] rounded-2xl p-5 border border-white/5 mb-5 flex items-center justify-between shadow-inner">
+            <div>
+                <span class="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] block mb-1">Entry Fee</span>
+                <span class="text-xl font-black text-white drop-shadow-md tracking-tight">৳30</span>
+            </div>
+            <div class="text-right">
+                <span class="text-[8px] text-slate-500 font-black uppercase tracking-[0.15em] block mb-1">Payment</span>
+                <span class="text-[11px] text-emerald-400 font-black uppercase tracking-wider drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]">Bkash / Nagad</span>
+            </div>
+        </div>
+        
+        <!-- Registration Status / Button -->
+        <div id="p-reg-status-area"></div>
+    </div>
+</div>
 
             <!-- Live Bid Banner -->
             <div id="p-live-bid-banner" class="hidden bg-gradient-to-r from-rose-900/40 to-rose-800/20 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-3">
@@ -455,31 +487,43 @@
 <div class="flex-1 overflow-y-auto custom-scrollbar pt-[116px] pb-[80px]" id="manager-content">
         <!-- DASHBOARD TAB -->
         <div id="m-tab-dashboard" class="p-4 space-y-4">
-            <!-- Team Info Card -->
-            <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-white/5 rounded-2xl p-4">
-                <div class="flex items-center gap-4 mb-4">
-                    <div id="m-dash-logo" class="w-16 h-16 rounded-xl bg-slate-800 border border-blue-500/30 overflow-hidden flex items-center justify-center"></div>
-                    <div>
-                        <div id="m-dash-team-name" class="text-lg font-black text-white uppercase"></div>
-                        <div id="m-dash-owner" class="text-[9px] text-slate-400 font-bold">Owner: --</div>
-                        <div id="m-dash-id" class="text-[8px] text-blue-400 font-bold mt-1">ID: --</div>
-                    </div>
+<!-- Premium Team Info Card -->
+<div class="rounded-[2.5rem] overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-slate-800/60 p-1 mb-2">
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#0a0f18] to-[#05080f] rounded-[2.4rem] z-0"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.06)_0%,transparent_60%)] z-0 pointer-events-none rounded-[2.4rem]"></div>
+    
+    <div class="relative z-10 p-6">
+        <div class="flex items-center gap-4 mb-6">
+            <div id="m-dash-logo" class="w-16 h-16 rounded-[1.2rem] bg-[#0b121e] border-2 border-blue-500/30 overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.2)]"></div>
+            <div>
+                <div id="m-dash-team-name" class="text-2xl font-black text-white uppercase tracking-tight mb-1"></div>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-3 h-3 text-slate-500"></i>
+                    <div id="m-dash-owner" class="text-[9px] text-slate-400 font-black uppercase tracking-widest"></div>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                        <div id="m-stat-budget" class="text-base font-black text-gold-400">৳0</div>
-                        <div class="text-[7px] text-slate-400 font-bold uppercase">Budget Left</div>
-                    </div>
-                    <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                        <div id="m-stat-players" class="text-base font-black text-emerald-400">0</div>
-                        <div class="text-[7px] text-slate-400 font-bold uppercase">Players</div>
-                    </div>
-                    <div class="bg-black/30 rounded-xl p-2 text-center border border-white/5">
-                        <div id="m-stat-slots" class="text-base font-black text-blue-400">0</div>
-                        <div class="text-[7px] text-slate-400 font-bold uppercase">Slots Left</div>
-                    </div>
+                <div class="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                    <i data-lucide="hash" class="w-2.5 h-2.5 text-blue-400"></i>
+                    <div id="m-dash-id" class="text-[8px] text-blue-400 font-black tracking-widest"></div>
                 </div>
             </div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-3">
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="m-stat-budget" class="text-xl font-black text-gold-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)] tracking-tighter mb-1">৳0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Budget Left</div>
+            </div>
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="m-stat-players" class="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)] tracking-tighter mb-1">0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Players</div>
+            </div>
+            <div class="bg-[#0b121e] rounded-2xl p-4 text-center border border-white/5 shadow-inner">
+                <div id="m-stat-slots" class="text-xl font-black text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.3)] tracking-tighter mb-1">0</div>
+                <div class="text-[7px] text-slate-500 font-black uppercase tracking-widest">Slots Left</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Payment Status -->
 <div id="m-payment-area"></div>
@@ -1111,13 +1155,15 @@
                             <input type="url" id="edit-avatar" placeholder="https://..." class="w-full p-3 pl-9 bg-slate-900 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-emerald-500 transition-colors">
                         </div>
                     </div>
-                    <div>
-                        <label class="text-[8px] text-slate-400 font-bold uppercase mb-1 block pl-1">Facebook Link</label>
-                        <div class="relative">
-                            <i data-lucide="facebook" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500"></i>
-                            <input type="url" id="edit-fb" class="w-full p-3 pl-9 bg-slate-900 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-emerald-500 transition-colors">
-                        </div>
-                    </div>
+<div>
+    <label class="text-[8px] text-slate-400 font-bold uppercase mb-1 block pl-1">Facebook Link</label>
+    <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+        </svg>
+        <input type="url" id="edit-fb" class="w-full p-3 pl-9 bg-slate-900 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-emerald-500 transition-colors">
+    </div>
+</div>
                 </div>
                 
                 <!-- Game Identity Section -->
@@ -1323,6 +1369,6 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="script.js?v=1.0.0"></script>
+<script src="script.js?v=1.1.0"></script>
 </body>
 </html>
