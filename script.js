@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.0.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -17,7 +17,6 @@ function checkAppVersion() {
     }
 }
 checkAppVersion();
-
 
 // ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
@@ -588,30 +587,37 @@ function renderPlayerPaymentArea() {
     const area = document.getElementById('p-reg-status-area');
     if (u.paymentStatus === 'approved') {
         area.innerHTML = `
-        <div class="space-y-2">
-            <div class="flex items-center gap-2 bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-3">
-                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
+        <div class="relative overflow-hidden bg-[#061e15] border-2 border-[#043b27] rounded-[1.2rem] p-4 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
+            <div class="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent pointer-events-none"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="check-circle-2" class="w-6 h-6 text-[#34d399] drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"></i>
+                </div>
                 <div>
-                    <div class="text-[9px] font-black text-emerald-400 uppercase">Registration Complete</div>
-                    <div class="text-[8px] text-slate-400 font-bold">Serial: ${u.serialNumber || '--'}</div>
+                    <div class="text-[11px] font-black text-[#34d399] uppercase tracking-widest mb-1 drop-shadow-sm">Registration Complete</div>
+                    <div class="text-[9px] text-emerald-600/70 font-black tracking-widest">Serial: <span class="text-emerald-400">${u.serialNumber || '--'}</span></div>
                 </div>
             </div>
         </div>`;
     } else if (u.paymentStatus === 'pending') {
         area.innerHTML = `
-        <div class="bg-gold-900/20 border border-gold-500/30 rounded-xl p-3 flex items-center gap-2">
-            <i data-lucide="clock" class="w-4 h-4 text-gold-400 flex-shrink-0"></i>
-            <div>
-                <div class="text-[9px] font-black text-gold-400 uppercase">Waiting for Admin Approval</div>
-                <div class="text-[8px] text-slate-400 font-bold">TRXID: ${u.trxid}</div>
+        <div class="relative overflow-hidden bg-[#241706] border-2 border-[#4b2f0a] rounded-[1.2rem] p-4 shadow-[0_0_20px_rgba(245,158,11,0.05)]">
+            <div class="absolute inset-0 bg-gradient-to-r from-gold-500/10 to-transparent pointer-events-none"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="clock" class="w-6 h-6 text-gold-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse"></i>
+                </div>
+                <div>
+                    <div class="text-[11px] font-black text-gold-400 uppercase tracking-widest mb-1 drop-shadow-sm">Waiting for Approval</div>
+                    <div class="text-[9px] text-gold-600/70 font-black tracking-widest">TRXID: <span class="text-gold-400">${u.trxid}</span></div>
+                </div>
             </div>
         </div>`;
     } else {
         area.innerHTML = `
-        <button onclick="openPaymentModal('player')" class="w-full py-4 bg-gradient-to-r from-gold-600 to-gold-700 text-black rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+        <button onclick="openPaymentModal('player')" class="w-full py-4.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-[1.2rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:shadow-[0_10px_30px_rgba(16,185,129,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-400/50">
             <i data-lucide="zap" class="w-4 h-4"></i> REGISTER NOW
-        </button>
-        <p class="text-[8px] text-slate-500 text-center mt-2 font-bold">Entry Fee: ৳${PLAYER_FEE}</p>`;
+        </button>`;
     }
     lucide.createIcons();
 }
@@ -850,9 +856,7 @@ function renderPlayerProfile() {
         <div class="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-colors">
             <div>
                 <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Game Identity</div>
-                <div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${u.konamiId || 'N/A'}</span></div>
-                <div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${u.deviceName || 'N/A'}</span></div>
-${u.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${u.lastEditAt.toDate ? u.lastEditAt.toDate().toLocaleString() : 'Recently'} ${u.lastEditDetails ? '<br>| ' + u.lastEditDetails : ''}</div>` : ''}
+<div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${u.konamiId || 'N/A'}</span></div><div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${u.deviceName || 'N/A'}</span></div><div class="text-[8px] font-bold text-slate-500 mt-1">Changes Left: <span class="text-gold-400">${2 - (u.konamiDeviceEditCount || 0)}/2</span> <span class="text-[7px]">(Group Stage Only)</span></div>${u.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${u.lastEditAt.toDate ? u.lastEditAt.toDate().toLocaleString() : 'Recently'} ${u.lastEditDetails ? '<br>| ' + u.lastEditDetails : ''}</div>` : ''}
             </div>
             <button onclick="openEditProfileModal()" class="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl text-[9px] font-black uppercase transition-colors border border-emerald-500/30"><i data-lucide="edit-3" class="w-3 h-3 inline"></i> Edit</button>
         </div>
@@ -866,9 +870,11 @@ ${u.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data
             </div>
         </div>
 
-        <div class="flex items-center gap-4 p-3.5 bg-black/40 rounded-2xl border border-white/5 hover:bg-black/60 transition-colors">
+<div class="flex items-center gap-4 p-3.5 bg-black/40 rounded-2xl border border-white/5 hover:bg-black/60 transition-colors">
             <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.1)]">
-                <i data-lucide="facebook" class="w-4 h-4 text-blue-400"></i>
+                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                </svg>
             </div>
             <div class="flex-1 min-w-0">
                 <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Facebook Profile</div>
@@ -931,8 +937,8 @@ function renderManagerDashboard() {
     
     document.getElementById('m-dash-logo').innerHTML = getAvatarUI({ name: fresh.teamName, avatar: fresh.logo }, 'w-full', 'h-full', 'rounded-xl');
     document.getElementById('m-dash-team-name').textContent = fresh.teamName;
-    document.getElementById('m-dash-owner').textContent = 'Owner: ' + fresh.name;
-    document.getElementById('m-dash-id').textContent = 'ID: ' + fresh.id;
+    document.getElementById('m-dash-owner').textContent = fresh.name;
+document.getElementById('m-dash-id').textContent = fresh.id;
     
     const settings = state.settings;
     const maxP = settings.maxPlayers || 6;
@@ -1024,13 +1030,18 @@ function renderManagerSquad() {
             <div class="text-[8px] text-emerald-400 font-bold tracking-widest mt-1">${p.serialNumber||'--'}</div>
         </div>
         
-        ${p.bidPrice ? `
+        ${ p.bidPrice ? `
         <div class="mt-auto w-full pt-3 border-t border-white/5 relative z-10">
             <div class="text-[11px] font-black text-gold-400 bg-gold-500/10 rounded-lg py-1.5 border border-gold-500/20 shadow-inner tracking-wider">৳${p.bidPrice}</div>
+        </div>` : (p.isManager ? `
+        <div class="mt-auto w-full pt-3 border-t border-white/5 relative z-10">
+            <div class="text-[10px] font-black text-blue-400 uppercase tracking-widest py-1.5 flex items-center justify-center gap-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-inner">
+                <i data-lucide="crown" class="w-3.5 h-3.5"></i> TEAM OWNER
+            </div>
         </div>` : `
         <div class="mt-auto w-full pt-3 border-t border-white/5 relative z-10">
             <div class="text-[9px] font-black text-slate-500 uppercase tracking-widest py-1.5">Free Draft</div>
-        </div>`}
+        </div>`) }
     </div>`).join('');
     
     // Lineup rendering
@@ -1163,9 +1174,7 @@ const mPlayer = state.players.find(p => p.id === u.managerPlayerId) || {}; // NE
         <div class="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:border-blue-500/30 transition-colors">
             <div>
                 <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest mb-1">Manager's Game Identity</div>
-                <div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${mPlayer.konamiId || 'N/A'}</span></div>
-                <div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${mPlayer.deviceName || 'N/A'}</span></div>
-${mPlayer.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${mPlayer.lastEditAt.toDate ? mPlayer.lastEditAt.toDate().toLocaleString() : 'Recently'} ${mPlayer.lastEditDetails ? '<br>| ' + mPlayer.lastEditDetails : ''}</div>` : ''}
+<div class="text-[11px] font-black text-white">Konami: <span class="text-emerald-400">${mPlayer.konamiId || 'N/A'}</span></div><div class="text-[11px] font-black text-white mt-0.5">Device: <span class="text-blue-400">${mPlayer.deviceName || 'N/A'}</span></div><div class="text-[8px] font-bold text-slate-500 mt-1">Changes Left: <span class="text-gold-400">${2 - (mPlayer.konamiDeviceEditCount || 0)}/2</span> <span class="text-[7px]">(Group Stage Only)</span></div>${mPlayer.lastEditAt ? `<div class="text-[7px] text-rose-400 font-bold mt-1.5"><i data-lucide="clock" class="w-2.5 h-2.5 inline pb-0.5"></i> Last Edit: ${mPlayer.lastEditAt.toDate ? mPlayer.lastEditAt.toDate().toLocaleString() : 'Recently'} ${mPlayer.lastEditDetails ? '<br>| ' + mPlayer.lastEditDetails : ''}</div>` : ''}
             </div>
             <button onclick="openEditProfileModal()" class="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl text-[9px] font-black uppercase transition-colors border border-blue-500/30"><i data-lucide="edit-3" class="w-3 h-3 inline"></i> Edit</button>
         </div>
@@ -1602,69 +1611,97 @@ function renderStandings(containerId) {
 }
 
 // --- NEW TEAM MATCH FUNCTIONS ---
-
+let currentFormationKey = '2-2-2';
+let lineupAssignments =[]; // Array of player IDs placed on the pitch
+let activeBenchPlayerId = null; // Currently selected player from bench
+let matchLimit = 6;
 let activeMatchId = null;
 function openLineupSubmission(matchId) {
     activeMatchId = matchId;
     const u = state.currentUser;
     const m = state.matches.find(x => x.id === matchId);
     
-    if (!m || (m.team1Id !== u.id && m.team2Id !== u.id)) {
-        return notify('You are not authorized to submit lineup for this match!', 'alert-circle');
-    }
-    
-    // Security Check: Prevent submitting if already submitted
+    if (!m || (m.team1Id !== u.id && m.team2Id !== u.id)) return notify('Not authorized!', 'alert-circle');
     const isTeam1 = m.team1Id === u.id;
-    const myLineup = isTeam1 ? m.lineup1 : m.lineup2;
-    if (myLineup && myLineup.length > 0) {
-        return notify('Lineup already submitted for this match!', 'alert-circle');
-    }
+    if ((isTeam1 ? m.lineup1 : m.lineup2)?.length > 0) return notify('Lineup already submitted!', 'alert-circle');
     
+    matchLimit = state.settings.playersPerMatch || 6;
+    lineupAssignments = new Array(matchLimit).fill(null);
+    activeBenchPlayerId = null;
+    
+    // Set default formation based on limit
+    if (matchLimit === 5) currentFormationKey = '2-1-2';
+    else if (matchLimit === 6) currentFormationKey = '2-2-2';
+    else if (matchLimit === 7) currentFormationKey = '3-2-2';
+    else currentFormationKey = '2-2-2'; // fallback
+    
+    renderFormationUI();
+    openModal('modal-generic');
+}
+
+function renderFormationUI() {
+    const u = state.currentUser;
     const myPlayers = state.players.filter(p => p.teamId === u.id);
-    const limit = state.settings.playersPerMatch || 6;
+    
+    // Formation Options based on limit
+    let formOptions = '';
+    if (matchLimit === 5) formOptions = `<option value="2-1-2">2-1-2</option><option value="1-2-2">1-2-2</option><option value="2-2-1">2-2-1</option>`;
+    else if (matchLimit === 6) formOptions = `<option value="2-2-2">2-2-2</option><option value="3-2-1">3-2-1</option><option value="1-3-2">1-3-2</option>`;
+    else if (matchLimit === 7) formOptions = `<option value="3-2-2">3-2-2</option><option value="2-3-2">2-3-2</option><option value="2-2-3">2-2-3</option>`;
+    else formOptions = `<option value="default">Default Flex</option>`;
     
     let html = `
-    <div class="bg-black/40 border border-white/5 rounded-xl p-3 mb-4 flex items-center justify-between shadow-inner">
-        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Select Starting ${limit}</span>
-        <span class="text-[12px] font-black text-slate-500 bg-slate-950 px-3 py-1 rounded-lg border border-white/10 transition-colors shadow-sm" id="lineup-counter">0 / ${limit}</span>
+    <!-- Top Controls -->
+    <div class="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-white/5 mb-3 shadow-inner">
+        <div class="flex items-center gap-2">
+            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest pl-1">Formation:</span>
+            <select id="formation-select" onchange="changeFormation(this.value)" class="bg-slate-900 border border-emerald-500/30 text-emerald-400 text-[10px] font-black rounded-lg px-2 py-1 outline-none">
+                ${formOptions}
+            </select>
+        </div>
+        <button onclick="previewFormationScreenshot()" class="px-3 py-1.5 bg-gradient-to-r from-gold-600 to-gold-500 text-black text-[9px] font-black uppercase rounded-lg shadow-md flex items-center gap-1 active:scale-95 transition-all">
+            <i data-lucide="camera" class="w-3 h-3"></i> Preview
+        </button>
     </div>
-    <div class="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 pb-2">`;
-    
-myPlayers.forEach(p => {
-    const isSuspended = isPlayerSuspended(p);
-    const disabledClass = isSuspended ? 'opacity-40 cursor-not-allowed grayscale' : 'cursor-pointer hover:border-emerald-500/50 group';
-    
-    html += `
-        <label id="label-lineup-${p.id}" class="flex items-center justify-between p-3 bg-slate-900 border border-white/10 rounded-xl transition-all shadow-sm ${disabledClass}">
-            <div class="flex items-center gap-3">
-                ${getAvatarUI(p, 'w-10', 'h-10', 'rounded-lg border border-white/10 shadow-md')}
-                <div>
-                    <div class="text-[11px] font-black text-white uppercase tracking-wider player-name-label flex items-center gap-1" data-name="${p.name}">
-                        ${p.name} ${getDisciplineBadge(p)}
-                        ${isSuspended ? '<span class="text-[7px] text-rose-500 bg-rose-500/10 px-1 py-0.5 rounded tracking-widest ml-1">SUSPENDED</span>' : ''}
-                    </div>
-                    <div class="text-[8px] text-slate-400 font-bold tracking-widest mt-0.5 flex items-center gap-1">
-                        <i data-lucide="gamepad-2" class="w-2.5 h-2.5 text-emerald-500"></i> ${p.konamiId || 'N/A'}
-                    </div>
-                </div>
-            </div>
-            <div class="relative flex items-center justify-center w-6 h-6 rounded-md border border-white/20 bg-slate-950 ${!isSuspended ? 'group-hover:border-emerald-500' : ''} transition-colors">
-                <input type="checkbox" name="lineup-select" value="${p.id}" class="absolute opacity-0 w-full h-full ${isSuspended ? 'hidden' : 'cursor-pointer'}" ${isSuspended ? 'disabled' : ''} onchange="toggleLineupSelection(this, '${p.id}', ${limit})">
-                <i data-lucide="check" id="check-${p.id}" class="w-4 h-4 text-emerald-400 opacity-0 transition-opacity"></i>
-                ${isSuspended ? '<i data-lucide="lock" class="w-3 h-3 text-rose-500 absolute"></i>' : ''}
-            </div>
-        </label>`;
-});
-html += `</div>
-    <div id="captain-select-container" class="mt-4 pt-4 border-t border-white/10 hidden">
-        <label class="text-[9px] text-gold-400 font-black uppercase tracking-widest block mb-2"><i data-lucide="star" class="w-3.5 h-3.5 inline mb-0.5"></i> Select Captain</label>
-        <select id="lineup-captain" class="w-full p-3 bg-slate-950 border border-gold-500/30 text-white text-[11px] font-bold rounded-xl outline-none focus:border-gold-500">
-            <!-- Options dynamically added -->
-        </select>
-    </div>`;
 
-document.getElementById('generic-modal-body').innerHTML = html;
-    document.getElementById('generic-modal-title').innerText = "Submit Starting Lineup";
+    <!-- Instructions -->
+    <div class="bg-blue-900/20 border border-blue-500/30 rounded-xl p-2.5 mb-3 text-center">
+        <p class="text-[8.5px] text-blue-300 font-bold leading-relaxed">
+            <i data-lucide="info" class="w-3 h-3 inline mb-0.5 text-blue-400"></i> 
+            <b>কিভাবে সাজাবেন:</b> প্রথমে নিচের বেঞ্চ থেকে খেলোয়াড় সিলেক্ট করুন, এরপর মাঠের ফাঁকা বক্সে ট্যাপ করে তাকে বসান। সরাতে চাইলে মাঠের খেলোয়াড়ের ওপর ট্যাপ করুন।
+        </p>
+    </div>
+
+    <!-- Pitch Area -->
+    <div class="premium-pitch mb-4 flex flex-col justify-between py-6" id="pitch-area">
+        <div class="pitch-lines"></div>
+        <div class="penalty-area-top"></div>
+        <div class="penalty-area-bottom"></div>
+        <!-- Dynamic Slots will be injected here -->
+    </div>
+
+    <!-- Captain Selection -->
+    <div class="mb-4">
+        <select id="lineup-captain" class="w-full p-3 bg-slate-950 border border-gold-500/30 text-white text-[11px] font-bold rounded-xl outline-none focus:border-gold-500">
+            <option value="">-- Select Captain First --</option>
+        </select>
+    </div>
+
+    <!-- Bench Area -->
+    <div class="bg-slate-900/50 border border-white/5 rounded-xl p-3">
+        <span class="text-[9px] font-black text-white uppercase tracking-widest mb-2 block flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5 text-emerald-400"></i> Bench Players</span>
+        <div class="grid grid-cols-2 gap-2 max-h-[25vh] overflow-y-auto custom-scrollbar pr-1" id="bench-area">
+            <!-- Bench players injected here -->
+        </div>
+    </div>
+    `;
+    
+    document.getElementById('generic-modal-body').innerHTML = html;
+    document.getElementById('generic-modal-title').innerText = "Tactics & Formation";
+    
+    // Set initial select value
+    const formSelect = document.getElementById('formation-select');
+    if (formSelect) formSelect.value = currentFormationKey;
     
     const btn = document.getElementById('generic-modal-btn');
     btn.innerHTML = `<i data-lucide="shield-check" class="w-4 h-4"></i> Lock Final Lineup`;
@@ -1672,89 +1709,147 @@ document.getElementById('generic-modal-body').innerHTML = html;
     btn.onclick = submitLineupProcess;
     btn.classList.remove('hidden');
     
-    openModal('modal-generic');
+    updatePitchUI();
+    updateBenchUI();
     lucide.createIcons();
 }
 
-function toggleLineupSelection(checkbox, id, limit) {
-    const label = document.getElementById(`label-lineup-${id}`);
-    const checkIcon = document.getElementById(`check-${id}`);
-    
-    if (checkbox.checked) {
-        label.classList.add('bg-emerald-900/20', 'border-emerald-500/50');
-        label.classList.remove('bg-slate-900', 'border-white/10');
-        checkIcon.classList.remove('opacity-0');
-    } else {
-        label.classList.remove('bg-emerald-900/20', 'border-emerald-500/50');
-        label.classList.add('bg-slate-900', 'border-white/10');
-        checkIcon.classList.add('opacity-0');
-    }
-    
-    const count = document.querySelectorAll('input[name="lineup-select"]:checked').length;
-    const counterEl = document.getElementById('lineup-counter');
-    counterEl.innerText = `${count} / ${limit}`;
-    
-    if (count === limit) {
-        counterEl.classList.replace('text-slate-500', 'text-emerald-400');
-        counterEl.classList.replace('border-white/10', 'border-emerald-500/50');
-        counterEl.classList.replace('bg-slate-950', 'bg-emerald-500/10');
-    } else {
-        counterEl.classList.replace('text-emerald-400', 'text-slate-500');
-        counterEl.classList.replace('border-emerald-500/50', 'border-white/10');
-        counterEl.classList.replace('bg-emerald-500/10', 'bg-slate-950');
-    }
-    // Dynamic Captain Selection logic
-const capContainer = document.getElementById('captain-select-container');
-const capSelect = document.getElementById('lineup-captain');
+function changeFormation(val) {
+    currentFormationKey = val;
+    updatePitchUI();
+}
 
-if (count === limit) {
-    let options = '<option value="">-- Choose Captain --</option>';
-    document.querySelectorAll('input[name="lineup-select"]:checked').forEach(cb => {
-        const pId = cb.value;
-        const labelEl = document.getElementById(`label-lineup-${pId}`).querySelector('.player-name-label');
-        const pName = labelEl ? labelEl.getAttribute('data-name') : 'Player';
-        options += `<option value="${pId}">${pName}</option>`;
+function updatePitchUI() {
+    const pitch = document.getElementById('pitch-area');
+    if (!pitch) return;
+    
+    // Parse formation (e.g., '2-2-2' -> [2, 2, 2])
+    const rows = currentFormationKey === 'default' ? [matchLimit] : currentFormationKey.split('-').map(Number);
+    
+    // We render from Top (Attack) to Bottom (Defense) logically, or vice versa. Let's do Attack top, Def bottom.
+    // E.g., 2-1-2 means 2 FW, 1 MF, 2 DF.
+    
+    let slotIndex = 0;
+    let pitchHtml = `<div class="pitch-lines"></div><div class="penalty-area-top"></div><div class="penalty-area-bottom"></div>`;
+    
+    rows.forEach(count => {
+        pitchHtml += `<div class="formation-row">`;
+        for (let i = 0; i < count; i++) {
+            const currentIdx = slotIndex++;
+            const pId = lineupAssignments[currentIdx];
+            const p = pId ? state.players.find(x => x.id === pId) : null;
+            
+            if (p) {
+                pitchHtml += `
+                <div class="formation-slot filled" onclick="removePlayerFromSlot(${currentIdx})">
+                    ${getAvatarUI(p, 'w-full', 'h-full', 'rounded-full')}
+                    <div class="slot-name">${p.name}</div>
+                </div>`;
+            } else {
+                pitchHtml += `
+                <div class="formation-slot" onclick="assignActiveToSlot(${currentIdx})">
+                    <i data-lucide="plus" class="w-5 h-5 text-emerald-500/50"></i>
+                </div>`;
+            }
+        }
+        pitchHtml += `</div>`;
     });
-    capSelect.innerHTML = options;
-    capContainer.classList.remove('hidden');
+    
+    pitch.innerHTML = pitchHtml;
+    updateCaptainSelect();
     lucide.createIcons();
-} else {
-    capContainer.classList.add('hidden');
-    capSelect.innerHTML = '';
 }
+
+function updateBenchUI() {
+    const bench = document.getElementById('bench-area');
+    if (!bench) return;
+    
+    const u = state.currentUser;
+    const myPlayers = state.players.filter(p => p.teamId === u.id);
+    
+    let html = '';
+    myPlayers.forEach(p => {
+        const isSuspended = isPlayerSuspended(p);
+        const isPlaced = lineupAssignments.includes(p.id);
+        const isActive = activeBenchPlayerId === p.id;
+        
+        let stateClasses = 'bg-slate-950 border border-white/10';
+        if (isSuspended) stateClasses = 'opacity-40 grayscale cursor-not-allowed border-rose-500/30';
+        else if (isPlaced) stateClasses = 'placed bg-black/60 border-white/5';
+        else if (isActive) stateClasses = 'active-select';
+        
+        html += `
+        <div class="bench-player flex items-center gap-2 p-2 rounded-xl ${stateClasses}" ${(!isSuspended && !isPlaced) ? `onclick="selectBenchPlayer('${p.id}')"` : ''}>
+            ${getAvatarUI(p, 'w-8', 'h-8', 'rounded-md shadow-sm')}
+            <div class="flex-1 min-w-0">
+                <div class="text-[9px] font-black text-white uppercase truncate flex items-center gap-1">${p.name} ${isSuspended ? '<i data-lucide="lock" class="w-2.5 h-2.5 text-rose-500"></i>' : ''}</div>
+                <div class="text-[7px] text-slate-500 font-bold truncate mt-0.5">${p.konamiId || 'N/A'}</div>
+            </div>
+            ${isPlaced ? '<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500 opacity-50"></i>' : ''}
+        </div>`;
+    });
+    
+    bench.innerHTML = html;
+    lucide.createIcons();
+}
+
+function selectBenchPlayer(id) {
+    if (activeBenchPlayerId === id) activeBenchPlayerId = null; // deselect
+    else activeBenchPlayerId = id;
+    updateBenchUI();
+}
+
+function assignActiveToSlot(index) {
+    if (!activeBenchPlayerId) return notify('Please select a player from the bench first!', 'info');
+    
+    lineupAssignments[index] = activeBenchPlayerId;
+    activeBenchPlayerId = null; // Reset selection after placing
+    
+    updatePitchUI();
+    updateBenchUI();
+    SFX.play('click');
+}
+
+function removePlayerFromSlot(index) {
+    lineupAssignments[index] = null;
+    updatePitchUI();
+    updateBenchUI();
+    SFX.play('click');
+}
+
+function updateCaptainSelect() {
+    const capSelect = document.getElementById('lineup-captain');
+    if (!capSelect) return;
+    
+    const currentCap = capSelect.value;
+    let options = '<option value="">-- Select Captain --</option>';
+    
+    lineupAssignments.forEach(pId => {
+        if (pId) {
+            const p = state.players.find(x => x.id === pId);
+            if (p) options += `<option value="${p.id}" ${currentCap === p.id ? 'selected' : ''}>${p.name}</option>`;
+        }
+    });
+    
+    capSelect.innerHTML = options;
 }
 
 async function submitLineupProcess() {
-    const limit = state.settings.playersPerMatch || 6;
-    const selected = Array.from(document.querySelectorAll('input[name="lineup-select"]:checked')).map(cb => cb.value);
+    const selectedCount = lineupAssignments.filter(id => id !== null).length;
+    if (selectedCount !== matchLimit) return notify(`Please fill all ${matchLimit} positions on the pitch!`, 'alert-circle');
     
-    if (selected.length !== limit) {
-        return notify(`Please select exactly ${limit} players!`, 'alert-circle');
-    }
     const captainId = document.getElementById('lineup-captain')?.value;
-if (!captainId) {
-    return notify('Please select a Captain from your lineup!', 'alert-circle');
-}
+    if (!captainId) return notify('Please select a Captain!', 'alert-circle');
     
     const m = state.matches.find(x => x.id === activeMatchId);
     const u = state.currentUser;
+    if (!m) return;
     
-    if (!m || (m.team1Id !== u.id && m.team2Id !== u.id)) {
-        closeModal('modal-generic');
-        return notify('Action Blocked: Unauthorized Lineup Submission!', 'x-circle');
-    }
-    
-    // Final security check: Ensure lineup is not already submitted
     const isTeam1 = m.team1Id === u.id;
-    const myLineup = isTeam1 ? m.lineup1 : m.lineup2;
-    if (myLineup && myLineup.length > 0) {
-        closeModal('modal-generic');
-        return notify('Lineup has already been locked for this match!', 'alert-circle');
-    }
+    if ((isTeam1 ? m.lineup1 : m.lineup2)?.length > 0) return notify('Lineup already locked!', 'alert-circle');
     
-    // Confirmation Dialog before submission
-    askConfirm(`Are you sure you want to lock these ${limit} players? This action cannot be undone or changed later.`, async () => {
-        const updateField = isTeam1 ? { lineup1: selected, captain1: captainId } : { lineup2: selected, captain2: captainId };
+    askConfirm(`Are you sure you want to lock this formation? This cannot be changed later.`, async () => {
+        const updateField = isTeam1 ? { lineup1: lineupAssignments, captain1: captainId, formation1: currentFormationKey } : { lineup2: lineupAssignments, captain2: captainId, formation2: currentFormationKey };
         
         try {
             await db.collection('matches').doc(activeMatchId).update(updateField);
@@ -2792,31 +2887,44 @@ async function pickNextPlayer() {
     }
 
 // ==================== CHEAT LOGIC START ====================
-// আপনার নির্দিষ্ট প্লেয়ারদের আইডি এখানে বসাবেন। যেমন:['SBID1234XYZ', 'SBID9876ABC']
-const cheatPlayerIds = [];
+// The players in this array will be picked absolutely FIRST, in the exact order provided.
+const orderedStartPlayers =['SBIDWKQY4EK', 'SBIDGEW1G25']; // এখানে প্রথমে উঠার আইডিগুলো দিন
 
-// বর্তমান পুলে থাকা প্লেয়ারদের দুটি ভাগে ভাগ করা হলো
-const normalPlayers = pool.filter(id => !cheatPlayerIds.includes(id));
-const cheatPlayers = pool.filter(id => cheatPlayerIds.includes(id));
+// For example:['ID_B', 'ID_A', 'ID_C']. B will come first among these, then A, and C will be the absolute last.
+const orderedEndPlayers =['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBIDUO774PJ','SBID6E8BOH9'];
 
-let pickedId;
+let pickedId = null;
+let newPool = pool ? [...pool] :[];
 
-if (normalPlayers.length > 0) {
-    // যদি সাধারণ প্লেয়ার থাকে, তবে তাদের মধ্য থেকে রেন্ডমলি উঠবে
-    pickedId = normalPlayers[Math.floor(Math.random() * normalPlayers.length)];
-} else if (cheatPlayers.length > 0) {
-    // সাধারণ প্লেয়ার শেষ হলে, চিট লিস্টের প্লেয়ারদের মধ্য থেকে উঠবে
-    pickedId = cheatPlayers[Math.floor(Math.random() * cheatPlayers.length)];
-} else {
-    // ফলব্যাক (যদি কোনো কারণে উপরে ম্যাচ না করে)
-    pickedId = pool[Math.floor(Math.random() * pool.length)];
+if (newPool.length > 0) {
+    // 1. Check if there are any "Start Players" left in the pool
+    const remainingStartPlayers = orderedStartPlayers.filter(id => newPool.includes(id));
+    
+    // 2. Filter out both Start and End players to get the "Normal Players"
+    const normalPlayers = newPool.filter(id => !orderedStartPlayers.includes(id) && !orderedEndPlayers.includes(id));
+    
+    if (remainingStartPlayers.length > 0) {
+        // Priority 1: Pick exactly in the order defined in orderedStartPlayers
+        pickedId = remainingStartPlayers[0];
+    } else if (normalPlayers.length > 0) {
+        // Priority 2: Start players are finished. Pick normal players completely randomly
+        pickedId = normalPlayers[Math.floor(Math.random() * normalPlayers.length)];
+    } else {
+        // Priority 3: Normal players are finished. Pick exactly in the order defined in orderedEndPlayers
+        pickedId = orderedEndPlayers.find(id => newPool.includes(id));
+        
+        // Fallback silently just in case something goes wrong
+        if (!pickedId) {
+            pickedId = newPool[Math.floor(Math.random() * newPool.length)];
+        }
+    }
+    
+    const pickedIndex = newPool.indexOf(pickedId);
+    if (pickedIndex !== -1) {
+        newPool = newPool.filter((_, i) => i !== pickedIndex);
+    }
 }
-
-// যে প্লেয়ারটি উঠলো তাকে মূল পুল থেকে বাদ দেওয়া হচ্ছে
-const pickedIndex = pool.indexOf(pickedId);
-const newPool = pool.filter((_, i) => i !== pickedIndex);
 // ==================== CHEAT LOGIC END ====================
-
 const pickedPlayer = state.players.find(p => p.id === pickedId);
 
 if (!pickedPlayer) {
@@ -3408,18 +3516,28 @@ function onBidSessionUpdate() {
         updateAdminBidUI();
     }
 }
-// Check Deadline UI State
+// Check Deadline UI State & Fix Double Login Button Issue
 function applyDeadlineUI() {
     const banner = document.getElementById('registration-closed-banner');
-    const pSignupBtn = document.getElementById('btn-p-signup');
-    const mSignupBtn = document.getElementById('btn-m-signup');
+    
+    // Toggle Containers & Titles
+    const pToggle = document.getElementById('p-auth-toggle');
+    const pTitle = document.getElementById('p-auth-title');
+    const mToggle = document.getElementById('m-auth-toggle');
+    const mTitle = document.getElementById('m-auth-title');
     
     if (state.settings && state.settings.registrationDeadline) {
         if (new Date().getTime() > state.settings.registrationDeadline) {
-            // Deadline Passed - Hide signup buttons & show banner
+            // 🚫 Deadline Passed
             if (banner) banner.classList.remove('hidden');
-            if (pSignupBtn) pSignupBtn.style.display = 'none';
-            if (mSignupBtn) mSignupBtn.style.display = 'none';
+            
+            // Hide Toggle Containers (Removes double login issue)
+            if (pToggle) pToggle.style.display = 'none';
+            if (mToggle) mToggle.style.display = 'none';
+            
+            // Show plain titles instead
+            if (pTitle) pTitle.classList.remove('hidden');
+            if (mTitle) mTitle.classList.remove('hidden');
             
             // Force switch to login tab if they are currently on signup
             if (!document.getElementById('p-signup-form').classList.contains('hidden')) {
@@ -3432,10 +3550,14 @@ function applyDeadlineUI() {
         }
     }
     
-    // Deadline Not Passed or Cleared - Restore normal UI
+    // ✅ Deadline Not Passed or Cleared - Restore normal UI
     if (banner) banner.classList.add('hidden');
-    if (pSignupBtn) pSignupBtn.style.display = 'block';
-    if (mSignupBtn) mSignupBtn.style.display = 'block';
+    
+    if (pToggle) pToggle.style.display = 'flex';
+    if (mToggle) mToggle.style.display = 'flex';
+    
+    if (pTitle) pTitle.classList.add('hidden');
+    if (mTitle) mTitle.classList.add('hidden');
 }
 function refreshCurrentView() {
     applyDeadlineUI();
@@ -3878,18 +4000,39 @@ async function saveProfileEdit() {
                 avatar: avatar
             };
             
-            // চেক করা হচ্ছে Konami ID বা Device Name পরিবর্তন হয়েছে কিনা
-            const konamiChanged = currentPlayer.konamiId !== konamiId;
-            const deviceChanged = currentPlayer.deviceName !== deviceName;
-            
-            if (konamiChanged || deviceChanged) {
-                let logs = [];
-        if (konamiChanged) logs.push(`${currentPlayer.konamiId || 'N/A'} to ${konamiId}`);
-        if (deviceChanged) logs.push(`${currentPlayer.deviceName || 'N/A'} to ${deviceName}`);
-        
-        updateData.lastEditDetails = logs.join(" / ");
-        updateData.lastEditAt = firebase.firestore.FieldValue.serverTimestamp();
+// Check if Konami ID or Device Name has changed
+const konamiChanged = currentPlayer.konamiId !== konamiId;
+const deviceChanged = currentPlayer.deviceName !== deviceName;
+
+if (konamiChanged || deviceChanged) {
+    // 1. Check if it's a Knockout stage (by checking match round names)
+    const isKnockout = state.matches.some(m => {
+        const r = (m.round || '').toUpperCase();
+        return r.includes('ELIMINATOR') || r.includes('QUALIFIER') || r.includes('FINAL');
+    });
+    
+    if (isKnockout) {
+        toggleBtnLoading(false, btn);
+        return notify('Konami ID/Device change is strictly prohibited in Knockout/Final stages!', 'lock');
     }
+    
+    // 2. Check if the edit limit has been exceeded
+    const currentEditCount = currentPlayer.konamiDeviceEditCount || 0;
+    if (currentEditCount >= 2) {
+        toggleBtnLoading(false, btn);
+        return notify('You have reached the maximum limit (2) for changing Konami ID/Device!', 'lock');
+    }
+    
+    // 3. Update the limit counter
+    updateData.konamiDeviceEditCount = currentEditCount + 1;
+    
+    let logs = [];
+    if (konamiChanged) logs.push(`${currentPlayer.konamiId || 'N/A'} to ${konamiId}`);
+    if (deviceChanged) logs.push(`${currentPlayer.deviceName || 'N/A'} to ${deviceName}`);
+    
+    updateData.lastEditDetails = logs.join(" / ");
+    updateData.lastEditAt = firebase.firestore.FieldValue.serverTimestamp();
+}
     
     // ফায়ারবেস ডেটাবেসে প্লেয়ারের প্রোফাইল আপডেট
     await db.collection('players').doc(playerId).update(updateData);
@@ -4289,7 +4432,95 @@ function openLineupPreview(matchId) {
     openModal('modal-lineup-preview');
     lucide.createIcons();
 }
+function previewFormationScreenshot() {
+    const selectedCount = lineupAssignments.filter(id => id !== null).length;
+    if (selectedCount !== matchLimit) return notify(`Please fill all positions before previewing!`, 'info');
+    
+    const m = state.matches.find(x => x.id === activeMatchId);
+    const u = state.currentUser;
+    const isTeam1 = m.team1Id === u.id;
+    const opponentId = isTeam1 ? m.team2Id : m.team1Id;
+    const oppTeam = state.managers.find(mg => mg.id === opponentId);
+    
+    // Create the Pitch HTML exactly like the interactive one but static and bigger
+    const rows = currentFormationKey === 'default' ? [matchLimit] : currentFormationKey.split('-').map(Number);
+    let slotIndex = 0;
+    let pitchHtml = `<div class="pitch-lines"></div><div class="penalty-area-top"></div><div class="penalty-area-bottom"></div>`;
+    
+    rows.forEach(count => {
+        pitchHtml += `<div class="formation-row">`;
+        for (let i = 0; i < count; i++) {
+            const pId = lineupAssignments[slotIndex++];
+            const p = state.players.find(x => x.id === pId);
+            const isCap = document.getElementById('lineup-captain')?.value === pId;
+            
+            pitchHtml += `
+            <div class="formation-slot filled" style="width: 50px; height: 50px; border-color: #f59e0b; box-shadow: 0 5px 15px rgba(0,0,0,0.8);">
+                ${getAvatarUI(p, 'w-full', 'h-full', 'rounded-full border-2 border-gold-500')}
+                ${isCap ? '<div class="absolute -top-2 -right-2 bg-rose-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white/50 z-20 shadow-md">C</div>' : ''}
+                <div class="slot-name" style="bottom:-20px; font-size:9px; background:rgba(0,0,0,0.9); padding:3px 8px; border-color:#f59e0b;">${p.name}</div>
+            </div>`;
+        }
+        pitchHtml += `</div>`;
+    });
+    
+    let html = `
+    <!-- Premium Background Glow Effects -->
+    <div class="absolute top-[0%] left-[-20%] w-[140%] h-[50%] bg-gradient-to-br from-blue-900/20 via-emerald-900/10 to-transparent blur-[80px] pointer-events-none"></div>
+    <div class="absolute bottom-[0%] right-[-20%] w-[140%] h-[50%] bg-gradient-to-tl from-gold-900/20 via-rose-900/10 to-transparent blur-[80px] pointer-events-none"></div>
+    
+    <div class="relative z-10 w-full flex flex-col items-center mt-6">
+        <!-- Header Info -->
+        <div class="text-center w-full mb-6">
+            <h2 class="text-[18px] font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 uppercase tracking-[0.3em] mb-2 drop-shadow-md">SLC BID TOURNAMENT S14</h2>
+            <div class="inline-flex items-center justify-center gap-2 bg-slate-900/80 backdrop-blur-md border border-white/10 px-6 py-1.5 rounded-full text-[10px] font-black text-emerald-400 tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                <i data-lucide="swords" class="w-3.5 h-3.5"></i> Match ${m.matchNumber || '#'} • Official Lineup
+            </div>
+        </div>
 
+        <!-- Team & Opponent Info -->
+        <div class="bg-black/40 border border-white/5 rounded-2xl w-full p-4 mb-6 flex items-center justify-between shadow-inner backdrop-blur-sm">
+            <div class="flex items-center gap-3 w-[45%]">
+                ${getAvatarUI({name: u.teamName, avatar: u.logo}, 'w-12', 'h-12', 'rounded-xl border border-gold-500/50 object-contain bg-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.3)]')}
+                <div class="min-w-0">
+                    <div class="text-[12px] font-black text-white uppercase truncate">${u.teamName}</div>
+                    <div class="text-[7px] text-slate-400 font-bold uppercase mt-1">Manager: <span class="text-gold-400">${u.name}</span></div>
+                </div>
+            </div>
+            <div class="w-[10%] text-center">
+                <span class="text-[14px] font-black text-slate-600 italic">VS</span>
+            </div>
+            <div class="flex items-center justify-end gap-3 w-[45%] text-right">
+                <div class="min-w-0">
+                    <div class="text-[12px] font-black text-white uppercase truncate">${oppTeam?.teamName || 'TBD'}</div>
+                    <div class="text-[7px] text-slate-400 font-bold uppercase mt-1">Opponent</div>
+                </div>
+                ${getAvatarUI({name: oppTeam?.teamName, avatar: oppTeam?.logo}, 'w-12', 'h-12', 'rounded-xl border border-slate-500/50 object-contain bg-slate-900 shadow-md')}
+            </div>
+        </div>
+
+        <!-- Formation Label -->
+        <div class="mb-4">
+            <span class="bg-gradient-to-r from-gold-600 to-gold-500 text-black px-4 py-1.5 rounded-md font-black text-[11px] uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                Formation : ${currentFormationKey}
+            </span>
+        </div>
+
+        <!-- The Big Pitch -->
+        <div class="premium-pitch flex flex-col justify-between py-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] border-2 border-gold-500/40" style="width: 90%; max-width: 350px; aspect-ratio: 3/4.2;">
+            ${pitchHtml}
+        </div>
+
+        <!-- Footer Branding -->
+        <div class="mt-8 text-center opacity-70">
+            <p class="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">Synthex Legion Chronicles</p>
+        </div>
+    </div>`;
+    
+    document.getElementById('lineup-preview-wrapper').innerHTML = html;
+    openModal('modal-lineup-preview');
+    lucide.createIcons();
+}
 function openMatchResultPreview(matchId) {
     const m = state.matches.find(x => x.id === matchId);
     if (!m) return;
