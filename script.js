@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.1.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -954,6 +954,7 @@ document.getElementById('m-dash-id').textContent = fresh.id;
     
     renderManagerPaymentArea();
     renderManagerBidArea();
+    renderRivalsBudgetStatus();
     lucide.createIcons();
 }
 
@@ -2518,40 +2519,6 @@ async function placeBid(increment) {
     await submitBid(newBid);
 }
 
-async function placeCustomBid() {
-    const val = parseInt(document.getElementById('m-custom-bid').value);
-    if (!val || val <= 0) return notify('Enter valid amount', 'alert-circle');
-    
-    const session = state.bidSession;
-    if (!session) return;
-    
-    const currentBid = session.currentBid || 0;
-    
-    // Rule 1: Allow bidding exactly the base price if no one has bid yet
-    if (val < currentBid || (val === currentBid && session.currentBidder)) {
-        return notify('Bid must be higher than current bid (৳' + currentBid + ')', 'alert-circle');
-    }
-    
-    const u = state.currentUser;
-    const fresh = state.managers.find(m => m.id === u.id) || u;
-    const budget = fresh.budget !== undefined ? fresh.budget : (state.settings.teamBudget || 1500);
-    const baseBid = state.settings.baseBid || 50;
-    
-    // Rule 2: Reserve budget validation
-    const squad = state.players.filter(p => p.teamId === u.id);
-    const maxP = state.settings.maxPlayers || 6;
-    const remainingSlotsAfterThis = Math.max(0, maxP - squad.length - 1);
-    const requiredReserve = remainingSlotsAfterThis * baseBid;
-    const maxAllowedBid = budget - requiredReserve;
-    
-    if (val > maxAllowedBid) {
-        return notify(`Save ৳${requiredReserve} for your remaining ${remainingSlotsAfterThis} slots! Max bid: ৳${maxAllowedBid}`, 'alert-circle');
-    }
-    
-    await submitBid(val);
-    document.getElementById('m-custom-bid').value = '';
-}
-
 async function submitBid(amount) {
         const u = state.currentUser;
         const fresh = state.managers.find(m => m.id === u.id) || u;
@@ -2888,13 +2855,13 @@ async function pickNextPlayer() {
 
 // ==================== CHEAT LOGIC START ====================
 // The players in this array will be picked absolutely FIRST, in the exact order provided.
-const orderedStartPlayers =['SBIDWKQY4EK', 'SBIDGEW1G25']; // এখানে প্রথমে উঠার আইডিগুলো দিন
+const orderedStartPlayers = ['SBID_FIRST_1', 'SBID_FIRST_2', 'SBID_FIRST_3']; // এখানে প্রথমে উঠার আইডিগুলো দিন
 
 // For example:['ID_B', 'ID_A', 'ID_C']. B will come first among these, then A, and C will be the absolute last.
-const orderedEndPlayers =['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBIDUO774PJ','SBID6E8BOH9'];
+const orderedEndPlayers = ['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBID6E8BOH9'];
 
 let pickedId = null;
-let newPool = pool ? [...pool] :[];
+let newPool = pool ? [...pool] : [];
 
 if (newPool.length > 0) {
     // 1. Check if there are any "Start Players" left in the pool
@@ -2925,6 +2892,7 @@ if (newPool.length > 0) {
     }
 }
 // ==================== CHEAT LOGIC END ====================
+
 const pickedPlayer = state.players.find(p => p.id === pickedId);
 
 if (!pickedPlayer) {
@@ -4924,7 +4892,8 @@ async function applyAutoLossForSuspendedPlayer(playerId) {
         if (changed) {
             // Recalculate main team score automatically
             let mainPts1 = 0, mainPts2 = 0;
-            newMatchups.forEach(mu => {
+ 
+           newMatchups.forEach(mu => {
                 if (mu.score1 > mu.score2) mainPts1 += 3;
                 else if (mu.score2 > mu.score1) mainPts2 += 3;
                 else if (mu.score1 === mu.score2) { mainPts1 += 1; mainPts2 += 1; }
@@ -5031,4 +5000,63 @@ function getTableTopperForTicker() {
     
     const sorted = Object.values(table).sort((a, b) => b.pts - a.pts || ((b.gf - b.ga) - (a.gf - a.ga)) || b.gf - a.gf);
     return sorted.length > 0 && sorted[0].pts > 0 ? sorted[0] : null;
+}
+
+// ==================== LIVE BUDGET TRACKER (MANAGER APP) ====================
+function renderRivalsBudgetStatus() {
+    const container = document.getElementById('m-rivals-budget-list');
+    if (!container) return;
+    
+    // সেটিং থেকে স্কোয়াড লিমিট এবং ডিফল্ট বাজেট বের করা
+    const maxP = state.settings.maxPlayers || 6;
+    const defaultBudget = state.settings.teamBudget || 1500;
+    
+    // শুধুমাত্র অ্যাপ্রুভড ম্যানেজারদের লিস্ট বের করা
+    const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
+    
+    if (approvedManagers.length === 0) {
+        container.innerHTML = `<p class="text-[9px] text-slate-500 font-bold italic py-4 text-center">No opponent data available</p>`;
+        return;
+    }
+    
+    let html = '';
+    
+    // বাজেট অনুযায়ী ক্রমানুসারে (যাদের টাকা বেশি তারা উপরে) সাজানো
+    const sortedManagers = approvedManagers.sort((a, b) => {
+        const budgetA = a.budget !== undefined ? a.budget : defaultBudget;
+        const budgetB = b.budget !== undefined ? b.budget : defaultBudget;
+        return budgetB - budgetA;
+    });
+    
+    sortedManagers.forEach(m => {
+        // এই ম্যানেজারের টিমে কতজন প্লেয়ার আছে তা বের করা
+        const squad = state.players.filter(p => p.teamId === m.id);
+        const budget = m.budget !== undefined ? m.budget : defaultBudget;
+        const isMe = state.currentUser && state.currentUser.id === m.id;
+        
+        // স্কোয়াড ফুল হয়ে গেলে লাল দেখাবে, অন্যথায় স্বাভাবিক
+        const squadColor = squad.length >= maxP ? 'text-rose-400' : 'text-emerald-400';
+        
+        html += `
+        <div class="flex items-center justify-between p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+            <div class="flex items-center gap-3">
+                ${getAvatarUI({name: m.teamName, avatar: m.logo}, 'w-9', 'h-9', 'rounded-lg border border-white/10 object-cover bg-slate-800 shadow-sm')}
+                <div>
+                    <div class="text-[10px] font-black ${isMe ? 'text-blue-400' : 'text-white'} uppercase tracking-wider">
+                        ${m.teamName} ${isMe ? '<span class="text-[7px] bg-blue-500/20 px-1 py-0.5 rounded text-blue-400 ml-1">YOU</span>' : ''}
+                    </div>
+                    <div class="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                        <i data-lucide="users" class="w-2.5 h-2.5"></i> Squad: <span class="${squadColor} font-black">${squad.length}/${maxP}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="text-right bg-black/60 px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
+                <div class="text-[7px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Budget</div>
+                <div class="text-[13px] font-black text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.3)]">৳${budget}</div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    lucide.createIcons();
 }
