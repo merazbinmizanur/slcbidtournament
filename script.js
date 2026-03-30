@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.1.2"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.3"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -988,6 +988,9 @@ function renderManagerBidArea() {
         bidArea.classList.add('hidden');
         return;
     }
+    // Reveal the area and trigger the data rendering
+    bidArea.classList.remove('hidden');
+    updateManagerBidUI();
 }
 
 function renderManagerSquad() {
@@ -2358,17 +2361,41 @@ function updateManagerBidUI() {
             }
             
             if (mTransientBidState === 'sold' || mTransientBidState === 'skipped') {
-                renderManagerActivePlayer(premiumCard, mCachedPlayer, mCachedBid, mCachedTeam, session, mTransientBidState);
-                mTransientTimer = setTimeout(() => {
-                    mCachedPlayer = null;
-                    renderManagerBidArea(); // re-evaluates hiding area
-                }, 3500);
-                return;
-            }
-        }
-    }
+    renderManagerActivePlayer(premiumCard, mCachedPlayer, mCachedBid, mCachedTeam, session, mTransientBidState);
+    mTransientTimer = setTimeout(() => {
+        mCachedPlayer = null;
+        renderManagerBidArea(); // re-evaluates hiding area
+    }, 3500);
+    return;
+}
 }
 
+// Idle State: Waiting for Admin to bring the next player
+if (!mCachedPlayer) {
+    document.getElementById('m-bid-player-name').textContent = 'Waiting for Admin...';
+    document.getElementById('m-bid-player-serial').textContent = '--';
+    document.getElementById('m-bid-current-amt').textContent = '৳0';
+    document.getElementById('m-bid-current-team').textContent = '--';
+    document.getElementById('m-countdown-num').textContent = '--';
+    
+    const img = document.getElementById('m-bid-player-img');
+    if (img) img.style.display = 'none';
+    
+    premiumCard.className = 'premium-bid-card flex flex-col items-center p-6 w-full relative overflow-hidden border border-white/5';
+    premiumCard.style.boxShadow = 'none';
+    
+    const overlay = document.getElementById('m-bid-state-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    
+    const buttons = document.getElementById('m-bid-buttons');
+    if (buttons) {
+        buttons.style.opacity = '0.3';
+        buttons.style.pointerEvents = 'none';
+    }
+}
+}
+
+}
 function renderManagerActivePlayer(cardEl, cp, bidAmt, teamName, session, stateType) {
     if(!cp) return;
     
@@ -2855,10 +2882,10 @@ async function pickNextPlayer() {
 
 // ==================== CHEAT LOGIC START ====================
 // The players in this array will be picked absolutely FIRST, in the exact order provided.
-const orderedStartPlayers = ['SBIDWKQY4EK', 'SBIDGEW1G25']; // এখানে প্রথমে উঠার আইডিগুলো দিন
+const orderedStartPlayers = ['SBID_FIRST_1', 'SBID_FIRST_2', 'SBID_FIRST_3']; // এখানে প্রথমে উঠার আইডিগুলো দিন
 
 // For example:['ID_B', 'ID_A', 'ID_C']. B will come first among these, then A, and C will be the absolute last.
-const orderedEndPlayers = ['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBIDUO774PJ', 'SBID6E8BOH9'];
+const orderedEndPlayers = ['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBID6E8BOH9'];
 
 let pickedId = null;
 let newPool = pool ? [...pool] : [];
@@ -4790,8 +4817,6 @@ function renderRulesTab(containerId) {
     lucide.createIcons();
 }
 
-// ==================== DISCIPLINARY SYSTEM HELPER FUNCTIONS ====================
-
 // এই ফাংশনটি প্লেয়ারের নামের পাশে হলুদ/লাল কার্ড বা ব্যানের আইকন দেখাবে
 function getDisciplineBadge(p) {
     if (!p || !p.disciplineStatus || p.disciplineStatus === 'none') return '';
@@ -4861,7 +4886,8 @@ async function applyDiscipline(action) {
 
         closeModal('modal-discipline');
         notify('Disciplinary action applied successfully!', 'check-circle');
-    } catch (e) {
+    } 
+catch (e) {
         notify('Failed to apply discipline', 'x-circle');
     }
 }
@@ -4892,8 +4918,7 @@ async function applyAutoLossForSuspendedPlayer(playerId) {
         if (changed) {
             // Recalculate main team score automatically
             let mainPts1 = 0, mainPts2 = 0;
- 
-           newMatchups.forEach(mu => {
+            newMatchups.forEach(mu => {
                 if (mu.score1 > mu.score2) mainPts1 += 3;
                 else if (mu.score2 > mu.score1) mainPts2 += 3;
                 else if (mu.score1 === mu.score2) { mainPts1 += 1; mainPts2 += 1; }
