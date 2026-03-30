@@ -1,4 +1,5 @@
-const CURRENT_APP_VERSION = "1.1.3"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+// ==========================================================
+const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
