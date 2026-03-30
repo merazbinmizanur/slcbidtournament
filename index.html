@@ -21,7 +21,7 @@
         }
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css?v=1.1.1">
+    <link rel="stylesheet" href="style.css?v=1.1.2">
 </head>
 <body class="bg-slate-950 text-slate-200 overflow-hidden" id="body-main">
 <!-- Sound Toggle Button -->
@@ -486,7 +486,8 @@
 </header>
 <div class="flex-1 overflow-y-auto custom-scrollbar pt-[116px] pb-[80px]" id="manager-content">
         <!-- DASHBOARD TAB -->
-        <div id="m-tab-dashboard" class="p-4 space-y-4">
+<!-- DASHBOARD TAB -->
+<div id="m-tab-dashboard" class="p-4 space-y-4 pb-24">
 <!-- Premium Team Info Card -->
 <div class="rounded-[2.5rem] overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-slate-800/60 p-1 mb-2">
     <div class="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#0a0f18] to-[#05080f] rounded-[2.4rem] z-0"></div>
@@ -533,11 +534,8 @@
     <i data-lucide="file-text" class="w-4 h-4"></i> Official Draft Report
 </button>
 
-<!-- Live Bid Area -->
-
-            <!-- Live Bid Area -->
 <!-- Premium Live Bid Area -->
-<div id="m-live-bid-area" class="hidden mt-4 pb-24">
+<div id="m-live-bid-area" class="hidden mt-4">
     <div class="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl relative">
         <!-- Top Gradient Ribbon -->
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-gold-500 to-rose-500 z-10"></div>
@@ -608,7 +606,6 @@
         </div>
     </div>
 </div>
-</div>
 
 <!-- ==================== RIVALS BUDGET DROPDOWN ==================== -->
 <div class="mt-4 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-[1.5rem] overflow-hidden shadow-2xl relative">
@@ -635,6 +632,8 @@
         </div>
     </div>
 </div>
+</div>
+
 
 <!-- SQUAD TAB -->
 <div id="m-tab-squad" class="p-4 hidden pb-24">
@@ -1386,6 +1385,6 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="script.js?v=1.1.1"></script>
+<script src="script.js?v=1.1.2"></script>
 </body>
 </html>
