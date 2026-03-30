@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.2"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -2855,10 +2855,10 @@ async function pickNextPlayer() {
 
 // ==================== CHEAT LOGIC START ====================
 // The players in this array will be picked absolutely FIRST, in the exact order provided.
-const orderedStartPlayers = ['SBID_FIRST_1', 'SBID_FIRST_2', 'SBID_FIRST_3']; // এখানে প্রথমে উঠার আইডিগুলো দিন
+const orderedStartPlayers = ['SBIDWKQY4EK', 'SBIDGEW1G25']; // এখানে প্রথমে উঠার আইডিগুলো দিন
 
 // For example:['ID_B', 'ID_A', 'ID_C']. B will come first among these, then A, and C will be the absolute last.
-const orderedEndPlayers = ['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBID6E8BOH9'];
+const orderedEndPlayers = ['SBID5WJ499Y', 'SBIDK13UGDG', 'SBID49ID5FK', 'SBIDKNCDHCV', 'SBIDUO774PJ', 'SBID6E8BOH9'];
 
 let pickedId = null;
 let newPool = pool ? [...pool] : [];
