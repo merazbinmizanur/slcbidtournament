@@ -1,5 +1,5 @@
 // ==========================================================
-const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.4"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -532,7 +532,7 @@ function launchPlayerApp() {
 function switchPTab(tab) {
     SFX.play('click');
 SFX.vibrate(15);
-    const tabs =['home', 'bid', 'teams', 'schedule','profile', 'info', 'rules'];
+    const tabs =['home', 'bid', 'teams', 'schedule','profile', 'info', 'rules','totr'];
     
     tabs.forEach(t => {
         const contentSection = document.getElementById(`p-tab-${t}`);
@@ -563,6 +563,9 @@ SFX.vibrate(15);
             case 'rules':
             renderRulesTab('p-tab-rules');
             break;
+            case 'totr':
+    renderTOTR('p-tab-totr');
+    break;
         case 'bid':
             if (typeof renderBidHistory === 'function') renderBidHistory();
             break;
@@ -916,7 +919,7 @@ function launchManagerApp() {
 function switchMTab(tab) {
     SFX.play('click');
 SFX.vibrate(15);
-['dashboard','squad','matches','standings','profile','info','rules'].forEach(t => {
+['dashboard','squad','matches','standings','profile','info','rules','totr'].forEach(t => {
         document.getElementById(`m-tab-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`mnav-${t}`);
         if (btn) btn.classList.toggle('active', t === tab);
@@ -927,6 +930,7 @@ SFX.vibrate(15);
     if (tab === 'standings') renderStandings('m-standings-table');
     if (tab === 'profile') renderManagerProfile();
     if (tab === 'rules') renderRulesTab('m-tab-rules');
+    if (tab === 'totr') renderTOTR('m-tab-totr');
     if (tab === 'info') renderInfoTab('m-info-container', document.getElementById('m-info-search').value);
     lucide.createIcons();
 }
@@ -1277,7 +1281,13 @@ if (m.status === 'pending_lineup') {
                     <button onclick="draw1v1Matchups('${m.id}')" class="px-3 py-1.5 bg-rose-600 border border-rose-500 text-white text-[8px] font-black rounded-lg uppercase shadow-md active:scale-95 transition-all">Draw 1VS1</button>
                 </div>`;
     } else {
-        actionBtn = `<span class="text-[7px] text-slate-500 font-bold">Waiting for Managers</span>`;
+        actionBtn = `
+                <div class="flex items-center gap-2">
+                    <span class="text-[7px] text-slate-500 font-bold uppercase">Waiting for Managers</span>
+                    <button onclick="forceAutoLineup('${m.id}')" class="px-2.5 py-1 bg-gradient-to-r from-rose-600 to-rose-500 border border-rose-400/30 text-white text-[7px] font-black rounded-lg uppercase shadow-[0_0_10px_rgba(244,63,94,0.4)] active:scale-95 transition-all flex items-center gap-1">
+                        <i data-lucide="bot" class="w-2.5 h-2.5"></i> Auto Fill
+                    </button>
+                </div>`;
     }
 }
     } else if (m.status === 'ongoing') {
@@ -1363,9 +1373,9 @@ function openMatchSettings(matchId) {
             <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Round Name (e.g. Semi Final)</label>
             <input type="text" id="edit-m-round" value="${m.round || 'Group Stage'}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
         </div>
-        <div>
+<div>
             <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Deadline Date & Time</label>
-            <input type="text" id="edit-m-deadline" placeholder="e.g. 12:30 AM | March 23, 2025" value="${m.deadline || ''}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500 uppercase">
+            <input type="datetime-local" id="edit-m-deadline" value="${m.deadline || ''}" class="w-full p-3 bg-slate-950 border border-white/10 rounded-xl text-white text-[11px] font-bold outline-none focus:border-blue-500 uppercase text-center">
         </div>
         <div>
             <label class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Match Referee Name</label>
@@ -1901,7 +1911,21 @@ function copyMatchSchedule(matchId) {
     
     // Default values if not set by admin
     const roundName = (m.round || 'GROUP STAGE').toUpperCase();
-    const deadline = (m.deadline || 'TBD').toUpperCase();
+let deadline = 'TBD';
+if (m.deadline) {
+    try {
+        const d = new Date(m.deadline);
+        if (!isNaN(d.getTime())) {
+            const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            deadline = `${timeStr} | ${dateStr}`.toUpperCase();
+        } else {
+            deadline = m.deadline.toUpperCase();
+        }
+    } catch (e) {
+        deadline = m.deadline.toUpperCase();
+    }
+}
     const referee = (m.referee || 'SET BY ADMIN').toUpperCase();
     
     // Extract Captain Names (From lineup submission, fallback to owner)
@@ -2595,7 +2619,7 @@ function launchAdminApp() {
 function switchATab(tab) {
     SFX.play('click');
 SFX.vibrate(15);
-    const allTabs = ['overview', 'payments', 'bidding', 'players', 'teams', 'matches', 'info'];
+    const allTabs = ['overview', 'payments', 'bidding', 'players', 'teams', 'matches', 'info','totr'];
     
     // 1. Loop through all tabs safely and toggle UI
     allTabs.forEach(t => {
@@ -2619,6 +2643,7 @@ SFX.vibrate(15);
     if (tab === 'players') renderAdminPlayers();
     if (tab === 'teams') renderAdminTeams();
     if (tab === 'matches') renderAdminMatches();
+    if (tab === 'totr') renderTOTR('a-tab-totr');
     if (tab === 'info') {
         const searchInput = document.getElementById('a-info-search');
         renderInfoTab('a-info-container', searchInput ? searchInput.value : '');
@@ -3380,30 +3405,46 @@ async function removePlayerFromTeam(playerId) {
 
 // ==================== MATCHES (ADMIN) ====================
 async function generateMatches() {
-        // Prevent generating if matches already exist
-        if (state.matches && state.matches.length > 0) {
-            return notify('Matches are already drawn! Clear existing matches to redraw.', 'x-circle');
-        }
-        
-        const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
-        if (approvedManagers.length < 2) return notify('Need at least 2 teams!', 'alert-circle');
-        
-        const allMatchups = [];
+    // Prevent generating if matches already exist
+    if (state.matches && state.matches.length > 0) {
+        return notify('Matches are already drawn! Clear existing matches to redraw.', 'x-circle');
+    }
+    
+    const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
+    if (approvedManagers.length < 2) return notify('Need at least 2 teams!', 'alert-circle');
+    
+    let teams = approvedManagers.map(m => m.id);
+    
+    // বিজোড় (Odd) টিম হলে একটি ডামি (null) টিম যুক্ত করা হবে Byes এর জন্য
+    if (teams.length % 2 !== 0) {
+        teams.push(null);
+    }
+    
+    const numTeams = teams.length;
+    const numRounds = numTeams - 1;
+    const halfSize = numTeams / 2;
+    
+    const allMatchups = [];
     let matchCounter = 1;
-    for (let i = 0; i < approvedManagers.length; i++) {
-        for (let j = 0; j < approvedManagers.length; j++) {
-            if (i !== j) {
-                const t1 = approvedManagers[i];
-                const t2 = approvedManagers[j];
-                
+    let roundCounter = 1;
+    
+    // --- First Leg (প্রথম লেগ) ---
+    let currentTeams = [...teams];
+    for (let round = 0; round < numRounds; round++) {
+        for (let i = 0; i < halfSize; i++) {
+            const home = currentTeams[i];
+            const away = currentTeams[numTeams - 1 - i];
+            
+            // যদি কোনো টিম null (ডামি) না হয়, তবেই ম্যাচ তৈরি হবে
+            if (home !== null && away !== null) {
                 allMatchups.push({
-            matchNumber: matchCounter++,
-            team1Id: t1.id,
-            team2Id: t2.id,
-            round: `Group Stage`,
-            status: 'pending_lineup', //
-            isPublic: false, // Match hidden by default
-            lineup1: [],
+                    matchNumber: matchCounter++,
+                    team1Id: home,
+                    team2Id: away,
+                    round: `Round ${roundCounter} | Group Stage`,
+                    status: 'pending_lineup',
+                    isPublic: false,
+                    lineup1: [],
                     lineup2: [],
                     matchups: [],
                     subbedOut1: [],
@@ -3414,14 +3455,40 @@ async function generateMatches() {
                 });
             }
         }
+        roundCounter++;
+        // রাউন্ড রবিন রোটেশন: প্রথম টিম ফিক্সড রেখে বাকিগুলো ঘড়ির কাঁটার দিকে ঘুরবে
+        currentTeams.splice(1, 0, currentTeams.pop());
     }
-    for (let i = allMatchups.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allMatchups[i], allMatchups[j]] = [allMatchups[j], allMatchups[i]];
+    
+    // --- Second Leg (দ্বিতীয় লেগ - Home & Away অদল বদল) ---
+    currentTeams = [...teams];
+    for (let round = 0; round < numRounds; round++) {
+        for (let i = 0; i < halfSize; i++) {
+            const away = currentTeams[i]; // Home এর জায়গায় Away
+            const home = currentTeams[numTeams - 1 - i]; // Away এর জায়গায় Home
+            
+            if (home !== null && away !== null) {
+                allMatchups.push({
+                    matchNumber: matchCounter++,
+                    team1Id: home,
+                    team2Id: away,
+                    round: `Round ${roundCounter} | Group Stage`,
+                    status: 'pending_lineup',
+                    isPublic: false,
+                    lineup1: [],
+                    lineup2: [],
+                    matchups: [],
+                    subbedOut1: [],
+                    subbedOut2: [],
+                    swapUsed1: false,
+                    swapUsed2: false,
+                    isTeamMatch: true
+                });
+            }
+        }
+        roundCounter++;
+        currentTeams.splice(1, 0, currentTeams.pop());
     }
-    allMatchups.forEach((m, index) => {
-        m.matchNumber = index + 1;
-    });
     
     // Save to database
     const batch = db.batch();
@@ -3431,7 +3498,7 @@ async function generateMatches() {
     });
     
     await batch.commit();
-    notify(`${allMatchups.length} Team Matches generated!`, 'check-circle');
+    notify(`${allMatchups.length} Team Matches generated perfectly!`, 'check-circle');
 }
 
 async function clearMatches() {
@@ -3496,11 +3563,24 @@ unsubscribers.push(db.collection('settings').doc('tournament').onSnapshot(snap =
         onBidSessionUpdate();
     }));
 
-    // Matches
-    unsubscribers.push(db.collection('matches').orderBy('createdAt', 'asc').onSnapshot(snap => {
-        state.matches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        refreshCurrentView();
-    }));
+// Matches
+unsubscribers.push(db.collection('matches').onSnapshot(snap => {
+    let fetchedMatches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // ম্যাচ নাম্বার অনুযায়ী সিরিয়ালি সাজানো হচ্ছে যাতে সিরিয়াল ব্রেক না হয়
+    fetchedMatches.sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+    state.matches = fetchedMatches;
+    refreshCurrentView();
+}));
+}
+
+function onBidSessionUpdate() {
+    if (state.role === 'player') {
+        updatePlayerBidUI();
+    } else if (state.role === 'manager') {
+        renderManagerBidArea();
+    } else if (state.role === 'admin') {
+        updateAdminBidUI();
+    }
 }
 
 function onBidSessionUpdate() {
@@ -4359,6 +4439,7 @@ function openLineupPreview(matchId) {
                     ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'rounded-2xl border-2 border-blue-400/50 shadow-[0_0_25px_rgba(59,130,246,0.4)] object-contain bg-slate-900 relative z-10')}
                 </div>
                 <div class="text-[13px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t1?.teamName || 'TBD'}</div>
+                ${m.isAutoLineup1 ? `<div class="text-[6.5px] text-rose-400 font-black uppercase mt-1 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1 shadow-[0_0_10px_rgba(244,63,94,0.2)]"><i data-lucide="bot" class="w-2.5 h-2.5"></i> Auto-Generated</div>` : ''}
                 <div class="text-[9px] text-blue-400 font-black uppercase mt-1.5 tracking-[0.2em] bg-blue-500/10 px-3 py-0.5 rounded-md border border-blue-500/20">HOME</div>
             </div>
             
@@ -4369,6 +4450,7 @@ function openLineupPreview(matchId) {
                     ${getAvatarUI({name: t2?.teamName, avatar: t2?.logo}, 'w-full', 'h-full', 'rounded-2xl border-2 border-emerald-400/50 shadow-[0_0_25px_rgba(16,185,129,0.4)] object-contain bg-slate-900 relative z-10')}
                 </div>
                 <div class="text-[13px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t2?.teamName || 'TBD'}</div>
+                ${m.isAutoLineup2 ? `<div class="text-[6.5px] text-rose-400 font-black uppercase mt-1 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 flex items-center gap-1 shadow-[0_0_10px_rgba(244,63,94,0.2)]"><i data-lucide="bot" class="w-2.5 h-2.5"></i> Auto-Generated</div>` : ''}
                 <div class="text-[9px] text-emerald-400 font-black uppercase mt-1.5 tracking-[0.2em] bg-emerald-500/10 px-3 py-0.5 rounded-md border border-emerald-500/20">AWAY</div>
             </div>
         </div>
@@ -4569,6 +4651,7 @@ function openMatchResultPreview(matchId) {
                     ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'rounded-2xl border border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] object-contain bg-slate-900 relative z-10')}
                 </div>
                 <div class="text-[11px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t1?.teamName || 'TBD'}</div>
+                ${m.isAutoLineup1 ? `<div class="text-[6px] text-rose-400 font-bold uppercase mt-1 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">Auto Lineup</div>` : ''}
             </div>
 
             <!-- Center Score -->
@@ -4587,6 +4670,7 @@ function openMatchResultPreview(matchId) {
                     ${getAvatarUI({name: t2?.teamName, avatar: t2?.logo}, 'w-full', 'h-full', 'rounded-2xl border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.3)] object-contain bg-slate-900 relative z-10')}
                 </div>
                 <div class="text-[11px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t2?.teamName || 'TBD'}</div>
+                ${m.isAutoLineup2 ? `<div class="text-[6px] text-rose-400 font-bold uppercase mt-1 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">Auto Lineup</div>` : ''}
             </div>
         </div>
 
@@ -4704,27 +4788,52 @@ function renderRulesTab(containerId) {
     const isBn = currentRulesLang === 'bn';
     
     // Content Database (Bilingual)
-    const texts = {
-        header: isBn ? "অফিসিয়াল রুলস বুক" : "Official Rules Book",
-        subHeader: isBn ? "টুর্নামেন্টের নিয়মাবলী ও নির্দেশিকা" : "Tournament Guidelines & Regulations",
-        bookIntro: isBn ? "সম্পূর্ণ টুর্নামেন্টটি SYNTHEX LEGION CHRONICLES ক্লাবের RULES BOOK অনুসারে পরিচালিত হবে।" : "The entire tournament will be conducted according to the SYNTHEX LEGION CHRONICLES RULES BOOK.",
-        bookLink: "অফিসিয়াল রুলস বুক পড়ুন",
-        
-        rule1Title: isBn ? "টুর্নামেন্ট ফরম্যাট" : "Tournament Format",
-        rule1Desc: isBn ? "প্রতিটি দল একে অপরের সাথে দুটি করে ম্যাচ খেলবে (HOME এবং AWAY)। গ্রুপ পর্ব শেষে পয়েন্ট টেবিলের শীর্ষ ৪টি দল কোয়ালিফাই করবে।<br><br><span class='text-emerald-400'>১ম ও ২য় দল</span> খেলবে <b>QUALIFIER 1</b>, এবং <span class='text-rose-400'>৩য় ও ৪র্থ দল</span> খেলবে <b>ELIMINATOR</b> রাউন্ড।<br><br>• QUALIFIER 1 বিজয়ী দল সরাসরি ফাইনালে যাবে।<br>• পরাজিত দল ELIMINATOR জয়ীর সাথে QUALIFIER 2 খেলবে।<br>• ELIMINATOR এ হেরে যাওয়া দল টুর্নামেন্ট থেকে বাতিল হবে।<br>• QUALIFIER 2 বিজয়ী দল ফাইনালে যাবে।" : "Each team will play two matches against each other (HOME and AWAY). After the group stage, the top 4 teams on the points table will qualify.<br><br><span class='text-emerald-400'>1st & 2nd</span> will play <b>QUALIFIER 1</b>, and <span class='text-rose-400'>3rd & 4th</span> will play the <b>ELIMINATOR</b>.<br><br>• QUALIFIER 1 winner advances directly to the Final.<br>• The loser plays the ELIMINATOR winner in QUALIFIER 2.<br>• The ELIMINATOR loser is directly eliminated.<br>• QUALIFIER 2 winner advances to the Final.",
-        
-        rule2Title: isBn ? "রেজিস্ট্রেশন ফি" : "Registration Fees",
-        rule2Desc: isBn ? "SLC BID TOURNAMENT - S14 এ প্লেয়ার রেজিস্ট্রেশন ফি <b>৳৩০</b> এবং ম্যানেজার ফি <b>৳১০০</b>।<br><br>ওয়েবসাইটে ঢুকে প্রদত্ত ফিস জমা দিয়ে আপনার রেজিস্ট্রেশন সম্পন্ন করতে হবে। বিকাশ অথবা নগদের মাধ্যমে সেন্ড মানি করে TRXID টি প্রদত্ত বক্সে সাবমিট করলেই রেজিস্ট্রেশন সম্পন্ন হবে। অন্যথায় আপনার রেজিস্ট্রেশন অসম্পূর্ণ থেকে যাবে এবং আপনি টুর্নামেন্টে অংশগ্রহণ করতে পারবেন না।" : "For SLC BID TOURNAMENT - S14, the Player registration fee is <b>৳30</b> and the Manager fee is <b>৳100</b>.<br><br>Fees must be paid via bKash or Nagad (Send Money) and the TRXID must be submitted in the provided box on the website. Without fee payment, your registration will remain incomplete and participation will be denied.",
-        
-        rule3Title: isBn ? "বেইজ প্রাইস (Base Price)" : "Base Price",
-        rule3Desc: isBn ? "LIVE BIDDING এর সময় প্রতিটি নিবন্ধিত খেলোয়াড়ের বেইস প্রাইস বা ভিত্তি মূল্য শুরু হবে <b>৳৫০</b> থেকে। সুতরাং, আপনি মাত্র ৳৩০ দিয়ে রেজিস্ট্রেশন করে সর্বনিম্ন ৳৫০ বেইস প্রাইস পাচ্ছেন।" : "During LIVE BIDDING, the base price for every registered player will start at <b>৳50</b>. This means by registering for only ৳30, you automatically secure a minimum base price of ৳50.",
-        
-        rule4Title: isBn ? "প্রাইস শেয়ারিং (Percentage)" : "Price Sharing (Percentage)",
-        rule4Desc: isBn ? "নিলামে বিক্রি হওয়া মূল্যের <b>৭০%</b> পাবেন খেলোয়াড় নিজে এবং বাকি <b>৩০%</b> ক্লাব পাবে (ক্লাব এই ৩০% টাকা মোট প্রাইস মানিতে যুক্ত করে দিবে)।<br><br><span class='text-gold-400'>উদাহরণ:</span> কোনো খেলোয়াড়ের দাম ১০০ টাকা হলে, উক্ত খেলোয়াড় পাবেন ৭০ টাকা আর ক্লাব পাবে ৩০ টাকা।" : "From the final auction price, the player will receive <b>70%</b> and the club will retain <b>30%</b> (which will be added to the overall prize pool).<br><br><span class='text-gold-400'>Example:</span> If a player is sold for ৳100, the player receives ৳70 and the club receives ৳30.",
-        
-        rule5Title: isBn ? "শৃঙ্খলা ও রেফারি" : "Disciplinary & Refereeing",
-        rule5Desc: isBn ? "ম্যাচ রেফারির সিদ্ধান্তই চূড়ান্ত বলে গণ্য হবে।<br><br>কোনো খেলোয়াড় কোনো ম্যাচে <b>রেড কার্ড (Red Card)</b> দেখলে, উক্ত ম্যাচে প্রতিপক্ষ দল অটোমেটিক <b>১-০</b> গোলে জয়লাভ করবে। এবং রেড কার্ড দেখা খেলোয়াড় পরবর্তী ম্যাচের জন্য সাসপেন্ড থাকবেন।" : "The Match Referee's decision will be considered absolute and final.<br><br>If a player receives a <b>Red Card</b> in any match, the opponent team will automatically be awarded a <b>1-0</b> victory for that match. Additionally, the red-carded player will be suspended for the next match."
-    };
+    // Content Database (Bilingual)
+const texts = {
+    header: isBn ? "অফিসিয়াল রুলস বুক" : "Official Rules Book",
+    subHeader: isBn ? "টুর্নামেন্টের নিয়মাবলী ও নির্দেশিকা" : "Tournament Guidelines & Regulations",
+    bookIntro: isBn ? "সম্পূর্ণ টুর্নামেন্টটি SYNTHEX LEGION CHRONICLES ক্লাবের RULES BOOK অনুসারে পরিচালিত হবে।" : "The entire tournament will be conducted according to the SYNTHEX LEGION CHRONICLES RULES BOOK.",
+    bookLink: "অফিসিয়াল রুলস বুক পড়ুন",
+    
+    // --- NEW SPECIAL RULES ---
+    specialRulesTitle: isBn ? "বিশেষ নিয়মাবলী" : "Special Regulations",
+    specialRulesSub: isBn ? "ম্যাচ চলাকালীন অবশ্য পালনীয়" : "Mandatory Match Rules",
+    
+    sRule1Title: isBn ? "টুর্নামেন্ট ফরম্যাট" : "Tournament Format",
+    sRule1Desc: isBn ? "টুর্নামেন্টটি মূলত ৬ 🆚 ৬ ফরম্যাটে অনুষ্ঠিত হবে। প্রতিটি দলে মূল স্কোয়াডের বাইরে ১ জন অতিরিক্ত খেলোয়াড় (Substitute) থাকবেন।" : "The tournament will be held in a 6 🆚 6 format. Each team will have 1 designated substitute player alongside the main squad.",
+    
+    sRule2Title: isBn ? "গেমপ্লে রেস্ট্রিকশন" : "Gameplay Restrictions",
+    sRule2Desc: isBn ? "ডিফেন্সিভ খেলা বা টাইম ওয়েস্ট সংক্রান্ত কোনো বাধ্যবাধকতা নেই। তবে, উদ্দেশ্যপ্রণোদিত <b>ব্যাকপাস এবং অতিরিক্ত ক্লিয়ার সম্পূর্ণ নিষিদ্ধ</b> (পেনাল্টি বক্সের ভেতর ক্লিয়ারেন্স গ্রহণযোগ্য)। অভিযোগের ক্ষেত্রে রেফারিকে অবশ্যই ভিডিও প্রমাণ দিতে হবে।<br><br><span class='text-rose-400 font-black'>শাস্তি:</span> প্রমাণের ভিত্তিতে রেফারি প্রতিপক্ষকে ১-০ গোলে জয়ী ঘোষণা করতে পারেন, অথবা প্রতিপক্ষকে ১-০ গোলে এগিয়ে রেখে নতুন/বাকি ম্যাচ খেলার নির্দেশ দিতে পারেন।" : "There are no restrictions on defensive gameplay or time-wasting. However, intentional <b>backpassing and excessive clearing are strictly prohibited</b> (clearances inside the penalty box are allowed). Video evidence must be submitted for any complaints.<br><br><span class='text-rose-400 font-black'>Penalty:</span> Based on evidence, the referee may award a 1-0 win to the opponent, or order a rematch/remaining match with the opponent leading 1-0.",
+    
+sRule3Title: isBn ? "ম্যাচ ভিডিও জমাদান" : "Match Video Submission",
+    sRule3Desc: isBn ? "ম্যাচ শেষে বিজয়ী খেলোয়াড়কে অথবা ম্যাচ ড্র হলে উভয় খেলোয়াড়কে আবশ্যিকভাবে ম্যাচ শেষের ইনফো ভিডিও রেকর্ডিং জমা দিতে হবে। এক্ষেত্রে <b>COBEG এর ভিডিও সাবমিট রুলস</b> কঠোরভাবে অনুসরণ করতে হবে।" : "Following a match, the winning player (or both players in case of a draw) must submit the post-match info video recording. <b>COBEG video submission rules</b> must be strictly followed in this regard.",
+    
+    sRule4Title: isBn ? "সাবস্টিটিউট ও সোয়াপ" : "Substitutions & Swaps",
+    sRule4Desc: isBn ? "একটি ম্যাচে প্রতিটি দল সর্বোচ্চ ১টি সাবস্টিটিউট (Sub) এবং ১টি সোয়াপ (Swap) ব্যবহার করতে পারবে। সোয়াপ করার ক্ষেত্রে প্রতিপক্ষের আগাম অনুমতির কোনো প্রয়োজন নেই।" : "Each team is allowed a maximum of 1 Substitute and 1 Swap per match. No prior permission from the opponent is required to execute a swap.",
+    
+    sRule5Title: isBn ? "নেটওয়ার্ক ও ভিপিএন (VPN)" : "Network & VPN",
+    sRule5Desc: isBn ? "ম্যাচ চলাকালীন VPN ব্যবহারে কোনো নিষেধাজ্ঞা নেই। যদি কোনো কারণে ম্যাচমেকিং সম্পন্ন না হয়, তবে ম্যাচ রেফারির চূড়ান্ত সিদ্ধান্তই কার্যকর হবে।" : "There are no restrictions on using a VPN. In the event of persistent matchmaking failures, the match referee will make the final decision.",
+    
+    sRule6Title: isBn ? "রেফারির সিদ্ধান্ত ও শৃঙ্খলা" : "Referee Decisions & Discipline",
+    sRule6Desc: isBn ? "রেফারির যেকোনো সিদ্ধান্তের বিষয়ে কথা বলার অধিকার শুধুমাত্র দুই দলের ক্যাপ্টেনদের থাকবে। অন্য কোনো খেলোয়াড় রেফারির সিদ্ধান্তে হস্তক্ষেপ করলে, রেফারি উক্ত খেলোয়াড় বা দলের বিরুদ্ধে যেকোনো শাস্তিমূলক ব্যবস্থা নেওয়ার সম্পূর্ণ অধিকার রাখেন।" : "Only the designated captains of the two teams reserve the right to discuss decisions with the match referee. If any other player interferes, the referee holds full authority to take any disciplinary action against the player or team.",
+    
+    // --- EXISTING RULES ---
+    rule1Title: isBn ? "লিগ ফরম্যাট" : "League Format",
+    rule1Desc: isBn ? "প্রতিটি দল একে অপরের সাথে দুটি করে ম্যাচ খেলবে (HOME এবং AWAY)। গ্রুপ পর্ব শেষে পয়েন্ট টেবিলের শীর্ষ ৪টি দল কোয়ালিফাই করবে।<br><br><span class='text-emerald-400'>১ম ও ২য় দল</span> খেলবে <b>QUALIFIER 1</b>, এবং <span class='text-rose-400'>৩য় ও ৪র্থ দল</span> খেলবে <b>ELIMINATOR</b> রাউন্ড।<br><br>• QUALIFIER 1 বিজয়ী দল সরাসরি ফাইনালে যাবে।<br>• পরাজিত দল ELIMINATOR জয়ীর সাথে QUALIFIER 2 খেলবে।<br>• ELIMINATOR এ হেরে যাওয়া দল টুর্নামেন্ট থেকে বাতিল হবে।<br>• QUALIFIER 2 বিজয়ী দল ফাইনালে যাবে।" : "Each team will play two matches against each other (HOME and AWAY). After the group stage, the top 4 teams on the points table will qualify.<br><br><span class='text-emerald-400'>1st & 2nd</span> will play <b>QUALIFIER 1</b>, and <span class='text-rose-400'>3rd & 4th</span> will play the <b>ELIMINATOR</b>.<br><br>• QUALIFIER 1 winner advances directly to the Final.<br>• The loser plays the ELIMINATOR winner in QUALIFIER 2.<br>• The ELIMINATOR loser is directly eliminated.<br>• QUALIFIER 2 winner advances to the Final.",
+    
+    rule2Title: isBn ? "রেজিস্ট্রেশন ফি" : "Registration Fees",
+    rule2Desc: isBn ? "SLC BID TOURNAMENT - S14 এ প্লেয়ার রেজিস্ট্রেশন ফি <b>৳৩০</b> এবং ম্যানেজার ফি <b>৳১০০</b>।<br><br>ওয়েবসাইটে ঢুকে প্রদত্ত ফিস জমা দিয়ে আপনার রেজিস্ট্রেশন সম্পন্ন করতে হবে। বিকাশ অথবা নগদের মাধ্যমে সেন্ড মানি করে TRXID টি প্রদত্ত বক্সে সাবমিট করলেই রেজিস্ট্রেশন সম্পন্ন হবে। অন্যথায় আপনার রেজিস্ট্রেশন অসম্পূর্ণ থেকে যাবে এবং আপনি টুর্নামেন্টে অংশগ্রহণ করতে পারবেন না।" : "For SLC BID TOURNAMENT - S14, the Player registration fee is <b>৳30</b> and the Manager fee is <b>৳100</b>.<br><br>Fees must be paid via bKash or Nagad (Send Money) and the TRXID must be submitted in the provided box on the website. Without fee payment, your registration will remain incomplete and participation will be denied.",
+    
+    rule3Title: isBn ? "বেইজ প্রাইস (Base Price)" : "Base Price",
+    rule3Desc: isBn ? "LIVE BIDDING এর সময় প্রতিটি নিবন্ধিত খেলোয়াড়ের বেইস প্রাইস বা ভিত্তি মূল্য শুরু হবে <b>৳৫০</b> থেকে। সুতরাং, আপনি মাত্র ৳৩০ দিয়ে রেজিস্ট্রেশন করে সর্বনিম্ন ৳৫০ বেইস প্রাইস পাচ্ছেন।" : "During LIVE BIDDING, the base price for every registered player will start at <b>৳50</b>. This means by registering for only ৳30, you automatically secure a minimum base price of ৳50.",
+    
+    rule4Title: isBn ? "প্রাইস শেয়ারিং (Percentage)" : "Price Sharing (Percentage)",
+    rule4Desc: isBn ? "নিলামে বিক্রি হওয়া মূল্যের <b>৭০%</b> পাবেন খেলোয়াড় নিজে এবং বাকি <b>৩০%</b> ক্লাব পাবে (ক্লাব এই ৩০% টাকা মোট প্রাইস মানিতে যুক্ত করে দিবে)।<br><br><span class='text-gold-400'>উদাহরণ:</span> কোনো খেলোয়াড়ের দাম ১০০ টাকা হলে, উক্ত খেলোয়াড় পাবেন ৭০ টাকা আর ক্লাব পাবে ৩০ টাকা।" : "From the final auction price, the player will receive <b>70%</b> and the club will retain <b>30%</b> (which will be added to the overall prize pool).<br><br><span class='text-gold-400'>Example:</span> If a player is sold for ৳100, the player receives ৳70 and the club receives ৳30.",
+    
+    rule5Title: isBn ? "শৃঙ্খলা ও রেফারি" : "Disciplinary
+ & Refereeing",
+    rule5Desc: isBn ? "ম্যাচ রেফারির সিদ্ধান্তই চূড়ান্ত বলে গণ্য হবে।<br><br>কোনো খেলোয়াড় কোনো ম্যাচে <b>রেড কার্ড (Red Card)</b> দেখলে, উক্ত ম্যাচে প্রতিপক্ষ দল অটোমেটিক <b>১-০</b> গোলে জয়লাভ করবে। এবং রেড কার্ড দেখা খেলোয়াড় পরবর্তী ম্যাচের জন্য সাসপেন্ড থাকবেন।" : "The Match Referee's decision will be considered absolute and final.<br><br>If a player receives a <b>Red Card</b> in any match, the opponent team will automatically be awarded a <b>1-0</b> victory for that match. Additionally, the red-carded player will be suspended for the next match."
+};
     
     const html = `
     <!-- Premium Header Area with Language Toggle -->
@@ -4755,7 +4864,92 @@ function renderRulesTab(containerId) {
         </a>
     </div>
 
-    <!-- The Rules List -->
+<!-- HIGHLIGHTED SPECIAL RULES -->
+<div class="mb-8 relative group">
+        <!-- Glowing Background -->
+        <div class="absolute inset-0 bg-gradient-to-b from-gold-500/20 via-rose-500/5 to-transparent rounded-[1.5rem] blur-xl pointer-events-none transition-all duration-500 group-hover:from-gold-500/30"></div>
+
+        <div class="bg-slate-950/90 backdrop-blur-xl border-2 border-gold-500/40 rounded-[1.5rem] shadow-[0_0_30px_rgba(245,158,11,0.15)] relative z-10 overflow-hidden">
+            <!-- Special Header -->
+            <div class="bg-gradient-to-r from-gold-900/60 via-slate-900 to-gold-900/60 p-5 border-b border-gold-500/30 text-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.15)_0%,transparent_70%)] pointer-events-none"></div>
+                <i data-lucide="award" class="w-10 h-10 text-gold-400 mx-auto mb-2 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] relative z-10"></i>
+                <h3 class="text-[16px] font-black text-transparent bg-clip-text bg-gradient-to-r from-gold-200 via-gold-400 to-gold-200 uppercase tracking-[0.2em] relative z-10 drop-shadow-md">${texts.specialRulesTitle}</h3>
+                <p class="text-[9px] text-gold-500/80 font-black uppercase tracking-[0.3em] mt-1 relative z-10">${texts.specialRulesSub}</p>
+            </div>
+
+            <!-- Special List -->
+            <div class="p-4 space-y-3">
+                
+                <!-- S Rule 1 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-gold-500/10 rounded-lg flex items-center justify-center border border-gold-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-gold-400">1</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule1Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule1Desc}</p>
+                    </div>
+                </div>
+
+                <!-- S Rule 2 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-gold-500/10 rounded-lg flex items-center justify-center border border-gold-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-gold-400">2</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule2Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule2Desc}</p>
+                    </div>
+                </div>
+
+                <!-- S Rule 3 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-gold-500/10 rounded-lg flex items-center justify-center border border-gold-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-gold-400">3</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule3Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule3Desc}</p>
+                    </div>
+                </div>
+
+                <!-- S Rule 4 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-gold-500/10 rounded-lg flex items-center justify-center border border-gold-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-gold-400">4</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule4Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule4Desc}</p>
+                    </div>
+                </div>
+
+                <!-- S Rule 5 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-gold-500/10 rounded-lg flex items-center justify-center border border-gold-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-gold-400">5</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule5Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule5Desc}</p>
+                    </div>
+                </div>
+
+                <!-- S Rule 6 -->
+                <div class="flex gap-3 items-start bg-black/40 p-3.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 transition-colors">
+                    <div class="w-7 h-7 bg-rose-500/10 rounded-lg flex items-center justify-center border border-rose-500/30 flex-shrink-0 shadow-inner mt-0.5">
+                        <span class="text-[12px] font-black text-rose-400">6</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white uppercase tracking-wider mb-1">${texts.sRule6Title}</h4>
+                        <p class="text-[10px] text-slate-300 font-medium leading-relaxed">${texts.sRule6Desc}</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
     <div class="space-y-4">
         <!-- Rule 1 -->
         <div class="bg-black/40 border border-white/5 rounded-[1.2rem] p-4.5 relative overflow-hidden hover:border-emerald-500/30 hover:bg-slate-900/60 transition-all shadow-sm">
@@ -5085,4 +5279,360 @@ function renderRivalsBudgetStatus() {
     
     container.innerHTML = html;
     lucide.createIcons();
+}
+
+// ==================== TEAM OF THE ROUND (TOTR) ENGINE ====================
+
+let selectedTOTRRound = null;
+
+function renderTOTR(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // ১. রাউন্ডগুলোর লিস্ট বের করা
+    const allRounds = [...new Set(state.matches.map(m => (m.round || 'GROUP STAGE').toUpperCase()))];
+    
+    if (allRounds.length === 0) {
+        container.innerHTML = `<div class="text-center py-16"><i data-lucide="shield-off" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i><p class="text-[11px] font-black text-slate-500 uppercase tracking-widest">No Matches Available</p></div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    // ডিফল্টভাবে সর্বশেষ রাউন্ড সিলেক্ট করা
+    if (!selectedTOTRRound || !allRounds.includes(selectedTOTRRound)) {
+        selectedTOTRRound = allRounds[allRounds.length - 1];
+    }
+
+    // ২. নির্বাচিত রাউন্ডের ম্যাচগুলো ফিল্টার করা
+    const roundMatches = state.matches.filter(m => (m.round || 'GROUP STAGE').toUpperCase() === selectedTOTRRound);
+    
+    // রাউন্ডটি কি শেষ? (যদি সব ম্যাচ 'completed' হয়)
+    const isRoundCompleted = roundMatches.length > 0 && roundMatches.every(m => m.status === 'completed');
+
+    // তারিখ ক্যালকুলেশন
+    let dateStr = 'TBD';
+    const dates = roundMatches.map(m => new Date(m.deadline || m.createdAt)).filter(d => !isNaN(d));
+    if (dates.length > 0) {
+        const minDate = new Date(Math.min(...dates)).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        const maxDate = new Date(Math.max(...dates)).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        dateStr = minDate === maxDate ? minDate : `${minDate} - ${maxDate}`;
+    }
+
+    // ৩. পয়েন্ট ক্যালকুলেশন
+    const playerStats = {};
+    roundMatches.filter(m => m.status === 'completed').forEach(m => {
+        (m.matchups || []).forEach(mu => {
+            [ {id: mu.p1Id, myScore: mu.score1, oppScore: mu.score2}, {id: mu.p2Id, myScore: mu.score2, oppScore: mu.score1} ].forEach(pl => {
+                if (!pl.id) return;
+                if (!playerStats[pl.id]) playerStats[pl.id] = { pts: 0, goals: 0, gd: 0 };
+                
+                playerStats[pl.id].goals += (pl.myScore || 0);
+                playerStats[pl.id].gd += ((pl.myScore || 0) - (pl.oppScore || 0));
+                
+                // সূত্র: গোল = ১০, ক্লিন শিট = ১৫
+                playerStats[pl.id].pts += (pl.myScore * 10);
+                if (pl.oppScore === 0) playerStats[pl.id].pts += 15;
+                
+                // সূত্র: জয় = ২০, ড্র = ৫
+                if (pl.myScore > pl.oppScore) playerStats[pl.id].pts += 20;
+                else if (pl.myScore === pl.oppScore) playerStats[pl.id].pts += 5;
+            });
+        });
+        // সূত্র: MVP = ৩০
+        if (m.mvpId && playerStats[m.mvpId]) playerStats[m.mvpId].pts += 30;
+    });
+
+    // র‍্যাংকিং তৈরি (পয়েন্ট -> গোল ডিফারেন্স -> গোল)
+    const rankedPlayers = Object.keys(playerStats)
+        .map(id => ({ id, ...playerStats[id], obj: state.players.find(p => p.id === id) }))
+        .filter(p => p.obj)
+        .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.goals - a.goals);
+
+// ৪. UI জেনারেট করা
+let html = `
+    <!-- Premium Header & Trigger Button -->
+    <div class="flex items-center justify-between bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-[1.2rem] p-4 mb-5 shadow-lg relative z-20">
+        <div>
+            <span class="text-[7px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Match Round</span>
+            <button onclick="openTOTRModal()" class="flex items-center gap-2 text-[12px] font-black text-gold-400 uppercase tracking-widest active:scale-95 transition-transform">
+                ${selectedTOTRRound} <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+        </div>
+        <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-black/40 px-3 py-2 rounded-xl border border-white/5 flex-shrink-0 shadow-inner">
+            <i data-lucide="calendar" class="w-3 h-3 inline pb-0.5 text-emerald-400"></i> ${dateStr}
+        </div>
+    </div>
+    
+    <!-- Premium Round Selection Modal (Fixed Overlay) -->
+    <div id="modal-totr-round" class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md hidden flex-col justify-center items-center p-4 transition-all">
+        <!-- Click outside to close -->
+        <div class="absolute inset-0" onclick="closeTOTRModal()"></div>
+        
+        <!-- Modal Card -->
+        <div class="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-[2rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-pop-in flex flex-col max-h-[80vh]">
+            
+            <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
+                <div>
+                    <h3 class="text-[14px] font-black text-white uppercase tracking-widest">Select Matchday</h3>
+                    <p class="text-[8px] text-slate-400 font-bold uppercase mt-1">View Team of the Round</p>
+                </div>
+                <button onclick="closeTOTRModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 transition-all active:scale-90">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable List (Now scrolls perfectly) -->
+            <div class="overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2 space-y-2 pb-2">
+                ${allRounds.map(r => `
+                    <button onclick="selectTOTRRound('${r}', '${containerId}')" class="w-full flex items-center justify-between p-4 rounded-xl border transition-all active:scale-95 ${r === selectedTOTRRound ? 'bg-gradient-to-r from-gold-500/10 to-transparent border-gold-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/10'}">
+                        <span class="text-[11px] font-black uppercase tracking-wider ${r === selectedTOTRRound ? 'text-gold-400' : 'text-slate-300'}">${r}</span>
+                        ${r === selectedTOTRRound ? `<i data-lucide="check-circle-2" class="w-5 h-5 text-gold-400"></i>` : `<i data-lucide="circle" class="w-5 h-5 text-slate-600"></i>`}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    </div>`;
+
+    if (rankedPlayers.length === 0) {
+        html += `<div class="text-center py-16"><p class="text-[10px] font-bold text-slate-500 uppercase">No Match Data Available Yet</p></div>`;
+        container.innerHTML = html; lucide.createIcons(); return;
+    }
+
+    if (!isRoundCompleted) {
+        // Phase 1: Live Top 10 Contenders
+        html += `
+        <div class="text-center mb-5 hide-on-screenshot">
+            <h2 class="text-[14px] font-black text-rose-400 uppercase tracking-[0.2em] animate-pulse"><i data-lucide="flame" class="w-4 h-4 inline pb-1"></i> Live Contenders</h2>
+            <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1">Round is ongoing. Top 6 will form the TOTR!</p>
+        </div>
+        <div class="space-y-2">`;
+        
+        rankedPlayers.slice(0, 10).forEach((p, i) => {
+            const isTop6 = i < 6;
+            const rankColor = i === 0 ? 'text-gold-400' : i < 3 ? 'text-slate-300' : 'text-slate-500';
+            html += `
+            <div class="flex items-center gap-3 p-3 bg-black/40 border ${isTop6 ? 'border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/5'} rounded-xl">
+                <div class="w-6 text-center text-[12px] font-black ${rankColor}">${i+1}</div>
+                ${getAvatarUI(p.obj, 'w-9', 'h-9', 'rounded-lg border border-white/10')}
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] font-black text-white uppercase truncate">${p.obj.name}</div>
+                    <div class="text-[7px] text-slate-400 font-bold tracking-widest uppercase">${getTeamName(p.obj.teamId)}</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[12px] font-black ${isTop6 ? 'text-emerald-400' : 'text-slate-400'}">${p.pts} <span class="text-[6px] text-slate-500">PTS</span></div>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    } else {
+        // Phase 2: Official Team of the Round
+        const top6 = rankedPlayers.slice(0, 6);
+        
+        // 2-2-2 Formation Render
+        const rows = [top6.slice(0,2), top6.slice(2,4), top6.slice(4,6)];
+        
+        let pitchHtml = '';
+        rows.forEach((rowPlayers, rowIndex) => {
+            pitchHtml += `<div class="flex justify-evenly w-full relative z-10 mb-2">`;
+            rowPlayers.forEach(p => {
+                // OVR Calculation (Base 80 + Points/10, Max 99)
+                const ovr = Math.min(99, 80 + Math.floor(p.pts / 10));
+                
+                pitchHtml += `
+                <div class="totr-card w-[90px] h-[125px] flex flex-col items-center justify-between pt-1 pb-2">
+                    <div class="totr-card-inner w-full h-full flex flex-col items-center justify-between">
+                        <!-- Top Row: OVR & Logo -->
+                        <div class="flex justify-between w-full px-1.5 items-start">
+                            <span class="text-[14px] font-black text-gold-400 drop-shadow-md leading-none">${ovr}</span>
+                            ${getAvatarUI({name: getTeamName(p.obj.teamId), avatar: state.managers.find(m=>m.id===p.obj.teamId)?.logo}, 'w-4', 'h-4', 'rounded-full object-contain')}
+                        </div>
+                        <!-- Player Image -->
+                        ${getAvatarUI(p.obj, 'w-12', 'h-12', 'rounded-full border-2 border-gold-500/50 shadow-lg object-cover')}
+                        
+                        <!-- Name & Stats -->
+                        <div class="w-full mt-1">
+                            <div class="text-[8px] font-black text-white uppercase truncate px-1">${p.obj.name}</div>
+                            <div class="text-[6px] font-bold text-slate-300 uppercase tracking-widest mt-0.5 bg-black/50 mx-1 rounded py-0.5">
+                                <span class="text-emerald-400">${p.goals}</span> GL <span class="text-slate-500">|</span> <span class="text-gold-400">${p.pts}</span> PT
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            pitchHtml += `</div>`;
+        });
+
+        html += `
+        <!-- Screenshot Controls -->
+        <div class="flex items-center justify-between mb-4 hide-on-screenshot">
+            <div>
+                <h2 class="text-[14px] font-black text-gold-400 uppercase tracking-[0.2em]"><i data-lucide="award" class="w-4 h-4 inline pb-1"></i> Official TOTR</h2>
+            </div>
+            <button onclick="takeTOTRScreenshot()" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Capture
+            </button>
+        </div>
+
+        <!-- The Virtual Pitch Container -->
+        <div class="relative w-full aspect-[3/4.2] max-w-[360px] mx-auto rounded-[1.5rem] overflow-hidden border-2 border-gold-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-gradient-to-b from-[#022c16] via-[#064e3b] to-[#022c16]">
+            <!-- Pitch Lines -->
+            <div class="absolute inset-0 border-[1.5px] border-white/10 m-3 rounded-lg pointer-events-none z-0"></div>
+            <div class="absolute top-1/2 left-0 w-full h-[1.5px] bg-white/10 -translate-y-1/2 pointer-events-none z-0"></div>
+            <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[1.5px] border-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0"></div>
+            
+            <!-- Cards Container -->
+            <div class="relative z-10 w-full h-full flex flex-col justify-evenly py-4">
+                ${pitchHtml}
+            </div>
+
+            <!-- Watermark (Only visible during screenshot) -->
+            <div class="totr-watermark absolute bottom-4 left-0 w-full flex-col items-center justify-center z-20">
+                <h1 class="text-[12px] font-black text-gold-400 uppercase tracking-[0.4em] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">TEAM OF THE ROUND</h1>
+                <p class="text-[7px] font-black text-white tracking-widest uppercase mt-1 bg-black/60 px-3 py-1 rounded-full border border-white/10">${selectedTOTRRound}</p>
+            </div>
+        </div>
+        `;
+    }
+
+    container.innerHTML = html;
+    lucide.createIcons();
+}
+
+function takeTOTRScreenshot() {
+    // স্ক্রিনশট মোড অন করা (UI হাইড হবে, ওয়াটারমার্ক শো হবে)
+    document.body.classList.add('screenshot-mode');
+    
+    // একটি সাউন্ড ইফেক্ট ও ভাইব্রেশন দেওয়া (ক্যামেরা ক্লিকের মতো)
+    SFX.play('success'); 
+    SFX.vibrate(50);
+    
+    notify('Screenshot Mode Active! Take your screenshot now.', 'camera');
+
+    // ৩ সেকেন্ড পর অটোমেটিক নরমাল মোডে ফিরে আসবে
+    setTimeout(() => {
+        document.body.classList.remove('screenshot-mode');
+    }, 3000);
+}
+
+// ==================== CUSTOM TOTR MODAL LOGIC ====================
+function openTOTRModal() {
+    const modal = document.getElementById('modal-totr-round');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+        SFX.play('click');
+        SFX.vibrate(15);
+    }
+}
+
+function closeTOTRModal() {
+    const modal = document.getElementById('modal-totr-round');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        SFX.play('click');
+    }
+}
+
+function selectTOTRRound(round, containerId) {
+    selectedTOTRRound = round;
+    closeTOTRModal();
+    // হালকা ডিলে দিয়ে রেন্ডার করছি যাতে মোডাল বন্ধ হওয়ার অ্যানিমেশনটা স্মুথ হয়
+    setTimeout(() => {
+        renderTOTR(containerId);
+    }, 150);
+    SFX.play('success');
+    SFX.vibrate([20, 30, 20]);
+}
+
+function selectTOTRRound(round, containerId) {
+    selectedTOTRRound = round;
+    // রি-রেন্ডার কল করার ফলে ড্রপডাউন এমনিতেই বন্ধ হয়ে যাবে
+    renderTOTR(containerId);
+    SFX.play('click');
+    SFX.vibrate(20);
+}
+
+// ==================== AUTO-LINEUP ENGINE (ADMIN) ====================
+async function forceAutoLineup(matchId) {
+    askConfirm('Are you sure you want to FORCE Auto-Lineup? This will automatically pick available players (excluding suspended) and set the Manager as Captain.', async () => {
+        const m = state.matches.find(x => x.id === matchId);
+        if (!m) return;
+        
+        const matchLimit = state.settings.playersPerMatch || 6;
+        let defaultFormation = '2-2-2';
+        if (matchLimit === 5) defaultFormation = '2-1-2';
+        else if (matchLimit === 7) defaultFormation = '3-2-2';
+        
+        let updateData = {};
+        
+        // Helper function to generate lineup for a single team
+        const generateTeamLineup = (teamId) => {
+            let teamPlayers = state.players.filter(p => p.teamId === teamId);
+            
+            // 1. Remove Suspended/Banned/Red Card players
+            let availablePlayers = teamPlayers.filter(p => !isPlayerSuspended(p));
+            
+            // 2. Find the Manager
+            let manager = availablePlayers.find(p => p.isManager);
+            let lineup = [];
+            let captainId = null;
+            
+            // 3. Put Manager as Captain (if available)
+            if (manager) {
+                lineup.push(manager.id);
+                captainId = manager.id;
+                // Remove manager from available pool to avoid duplicates
+                availablePlayers = availablePlayers.filter(p => p.id !== manager.id);
+            }
+            
+            // 4. Shuffle the rest of the available players randomly
+            availablePlayers.sort(() => Math.random() - 0.5);
+            
+            // 5. Fill the remaining required slots
+            let needed = matchLimit - lineup.length;
+            for (let i = 0; i < needed && i < availablePlayers.length; i++) {
+                lineup.push(availablePlayers[i].id);
+            }
+            
+            // 6. If no manager was found, pick the first available player as captain
+            if (!captainId && lineup.length > 0) {
+                captainId = lineup[0];
+            }
+            
+            return { lineup, captainId };
+        };
+        
+        // Process Team 1 (If missing)
+        if (!m.lineup1 || m.lineup1.length === 0) {
+            const result = generateTeamLineup(m.team1Id);
+            updateData.lineup1 = result.lineup;
+            updateData.captain1 = result.captainId;
+            updateData.formation1 = defaultFormation;
+            updateData.isAutoLineup1 = true; // Warning Flag
+        }
+        
+        // Process Team 2 (If missing)
+        if (!m.lineup2 || m.lineup2.length === 0) {
+            const result = generateTeamLineup(m.team2Id);
+            updateData.lineup2 = result.lineup;
+            updateData.captain2 = result.captainId;
+            updateData.formation2 = defaultFormation;
+            updateData.isAutoLineup2 = true; // Warning Flag
+        }
+        
+        if (Object.keys(updateData).length === 0) {
+            return notify('Both teams have already submitted their lineups!', 'info');
+        }
+        
+        try {
+            await db.collection('matches').doc(matchId).update(updateData);
+            notify('Auto-Lineup Applied Successfully!', 'check-circle');
+            SFX.play('success');
+            SFX.vibrate([50, 100, 50]);
+        } catch (e) {
+            notify('Failed to apply Auto-Lineup', 'x-circle');
+        }
+    });
 }
