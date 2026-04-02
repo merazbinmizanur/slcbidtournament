@@ -1968,6 +1968,7 @@ if (m.deadline) {
     
     text += `💠 প্রত্যেক ম্যাচ শেষে বিজয়ী দল লিস্ট আপডেট করে দিবেন।\n`;
     text += `💠 নামের সাথে SUB/SWAP লিখে দিবেন।\n`;
+    text += `💠 একই PAIRING-এর উপর পুনরায় IDENTICAL SWAP করা সম্পূর্ণ নিষিদ্ধ ।\n`;
     text += `💠 ম্যাচডে চলাকালীন ইনফো পরিবর্তন সম্ভব নয় ।\n\n`;
     
     text += `▫️𝗧𝗛𝗜𝗦 𝗧𝗢𝗨𝗥𝗡𝗔𝗠𝗘𝗡𝗧 𝗪𝗜𝗟𝗟 𝗕𝗘 𝗖𝗢𝗡𝗗𝗨𝗖𝗧𝗘𝗗 𝗘𝗡𝗧𝗜𝗥𝗘𝗟𝗬 𝗔𝗖𝗖𝗢𝗥𝗗𝗜𝗡𝗚 𝗧𝗢 𝗦𝗟𝗖 𝗥𝗨𝗟𝗘𝗦 𝗕𝗢𝗢𝗞\nhttps://tinyurl.com/ya6jp2cr\n\n`;
@@ -4795,12 +4796,11 @@ const texts = {
     sRule2Title: isBn ? "গেমপ্লে রেস্ট্রিকশন" : "Gameplay Restrictions",
     sRule2Desc: isBn ? "ডিফেন্সিভ খেলা বা টাইম ওয়েস্ট সংক্রান্ত কোনো বাধ্যবাধকতা নেই। তবে, উদ্দেশ্যপ্রণোদিত <b>ব্যাকপাস এবং অতিরিক্ত ক্লিয়ার সম্পূর্ণ নিষিদ্ধ</b> (পেনাল্টি বক্সের ভেতর ক্লিয়ারেন্স গ্রহণযোগ্য)। অভিযোগের ক্ষেত্রে রেফারিকে অবশ্যই ভিডিও প্রমাণ দিতে হবে।<br><br><span class='text-rose-400 font-black'>শাস্তি:</span> প্রমাণের ভিত্তিতে রেফারি প্রতিপক্ষকে ১-০ গোলে জয়ী ঘোষণা করতে পারেন, অথবা প্রতিপক্ষকে ১-০ গোলে এগিয়ে রেখে নতুন/বাকি ম্যাচ খেলার নির্দেশ দিতে পারেন।" : "There are no restrictions on defensive gameplay or time-wasting. However, intentional <b>backpassing and excessive clearing are strictly prohibited</b> (clearances inside the penalty box are allowed). Video evidence must be submitted for any complaints.<br><br><span class='text-rose-400 font-black'>Penalty:</span> Based on evidence, the referee may award a 1-0 win to the opponent, or order a rematch/remaining match with the opponent leading 1-0.",
     
-sRule3Title: isBn ? "ম্যাচ ভিডিও জমাদান" : "Match Video Submission",
+    sRule3Title: isBn ? "ম্যাচ ভিডিও জমাদান" : "Match Video Submission",
     sRule3Desc: isBn ? "ম্যাচ শেষে বিজয়ী খেলোয়াড়কে অথবা ম্যাচ ড্র হলে উভয় খেলোয়াড়কে আবশ্যিকভাবে ম্যাচ শেষের ইনফো ভিডিও রেকর্ডিং জমা দিতে হবে। এক্ষেত্রে <b>COBEG এর ভিডিও সাবমিট রুলস</b> কঠোরভাবে অনুসরণ করতে হবে।" : "Following a match, the winning player (or both players in case of a draw) must submit the post-match info video recording. <b>COBEG video submission rules</b> must be strictly followed in this regard.",
     
     sRule4Title: isBn ? "সাবস্টিটিউট ও সোয়াপ" : "Substitutions & Swaps",
-    sRule4Desc: isBn ? "একটি ম্যাচে প্রতিটি দল সর্বোচ্চ ১টি সাবস্টিটিউট (Sub) এবং ১টি সোয়াপ (Swap) ব্যবহার করতে পারবে। সোয়াপ করার ক্ষেত্রে প্রতিপক্ষের আগাম অনুমতির কোনো প্রয়োজন নেই।" : "Each team is allowed a maximum of 1 Substitute and 1 Swap per match. No prior permission from the opponent is required to execute a swap.",
-    
+    sRule4Desc: isBn ? "একটি ম্যাচে প্রতিটি দল সর্বোচ্চ ১টি সাবস্টিটিউট (Sub) এবং ১টি সোয়াপ (Swap) ব্যবহার করতে পারবে। সোয়াপ করার ক্ষেত্রে প্রতিপক্ষের আগাম অনুমতির কোনো প্রয়োজন নেই। সাব করতে হলে অবশ্যই ডেডলাইনের অন্তত ৩০ মিনিট আগে করতে হবে। ১ মিনিট পরে হলেও সেই সাব গ্রহণযোগ্য হবে না।" : "Each team is allowed a maximum of 1 Substitute and 1 Swap per match. No prior permission from the opponent is required to execute a swap. Substitutions must be made at least 30 minutes before the deadline. Any request made even 1 minute late will not be accepted.",
     sRule5Title: isBn ? "নেটওয়ার্ক ও ভিপিএন (VPN)" : "Network & VPN",
     sRule5Desc: isBn ? "ম্যাচ চলাকালীন VPN ব্যবহারে কোনো নিষেধাজ্ঞা নেই। যদি কোনো কারণে ম্যাচমেকিং সম্পন্ন না হয়, তবে ম্যাচ রেফারির চূড়ান্ত সিদ্ধান্তই কার্যকর হবে।" : "There are no restrictions on using a VPN. In the event of persistent matchmaking failures, the match referee will make the final decision.",
     
