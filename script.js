@@ -1,5 +1,5 @@
 // ==========================================================
-const CURRENT_APP_VERSION = "1.1.4"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.2.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -3571,16 +3571,6 @@ unsubscribers.push(db.collection('matches').onSnapshot(snap => {
     state.matches = fetchedMatches;
     refreshCurrentView();
 }));
-}
-
-function onBidSessionUpdate() {
-    if (state.role === 'player') {
-        updatePlayerBidUI();
-    } else if (state.role === 'manager') {
-        renderManagerBidArea();
-    } else if (state.role === 'admin') {
-        updateAdminBidUI();
-    }
 }
 
 function onBidSessionUpdate() {
