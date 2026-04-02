@@ -21,7 +21,7 @@
         }
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css?v=1.1.3">
+    <link rel="stylesheet" href="style.css?v=1.1.4">
 </head>
 <body class="bg-slate-950 text-slate-200 overflow-hidden" id="body-main">
 <!-- Sound Toggle Button -->
@@ -402,7 +402,7 @@
 <div id="p-tab-rules" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
 </div>
-
+<div id="p-tab-totr" class="p-4 hidden pb-24"></div>
 <!-- PROFILE TAB -->
 <div id="p-tab-profile" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
@@ -442,6 +442,10 @@
         <i data-lucide="book-open"></i>
         <span>Rules</span>
     </button>
+    <button onclick="switchPTab('totr')" id="pnav-totr" class="nav-item">
+    <i data-lucide="star"></i>
+    <span>TOTR</span>
+</button>
     <button onclick="switchPTab('profile')" id="pnav-profile" class="nav-item">
         <i data-lucide="user"></i>
         <span>User</span>
@@ -706,6 +710,7 @@
 <div id="m-tab-rules" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
 </div>
+<div id="m-tab-totr" class="p-4 hidden pb-24"></div>
 <!-- PROFILE TAB -->
 <div id="m-tab-profile" class="p-4 hidden pb-24">
     <!-- Dynamically populated via JS -->
@@ -744,6 +749,10 @@
 <button onclick="switchMTab('rules')" id="mnav-rules" class="nav-item">
     <i data-lucide="book-open"></i>
     <span>Rules</span>
+</button>
+<button onclick="switchMTab('totr')" id="mnav-totr" class="nav-item">
+    <i data-lucide="star"></i>
+    <span>TOTR</span>
 </button>
     <button onclick="switchMTab('profile')" id="mnav-profile" class="nav-item">
         <i data-lucide="user"></i>
@@ -990,6 +999,7 @@
 <div id="a-tab-matches" class="p-4 hidden">
     <div id="a-matches-list" class="space-y-4"></div>
 </div>
+<div id="a-tab-totr" class="p-4 hidden pb-24"></div>
         <!-- INFO TAB -->
 <div id="a-tab-info" class="p-4 hidden">
     <div class="relative mb-4">
@@ -1030,6 +1040,10 @@
     <button onclick="switchATab('matches')" id="anav-matches" class="nav-item">
     <i data-lucide="swords"></i>
     <span>Matches</span>
+</button>
+<button onclick="switchATab('totr')" id="anav-totr" class="nav-item">
+    <i data-lucide="star"></i>
+    <span>TOTR</span>
 </button>
 </nav>
 </main>
@@ -1385,6 +1399,6 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="script.js?v=1.1.3"></script>
+<script src="script.js?v=1.1.4"></script>
 </body>
 </html>
