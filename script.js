@@ -1,5 +1,5 @@
 // ==========================================================
-const CURRENT_APP_VERSION = "1.2.0"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
+const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
 
 function checkAppVersion() {
     const savedVersion = localStorage.getItem('slc_app_version');
@@ -18,7 +18,6 @@ function checkAppVersion() {
     }
 }
 checkAppVersion();
-
 // ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
     apiKey: "AIzaSyBVw-llKk9Ia2yGMNI4t3awkX_RaNApNjQ",
