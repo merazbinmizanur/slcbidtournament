@@ -1,7 +1,8 @@
+const CURRENT_APP_VERSION = "1.2.5"; // নতুন ভার্সন
+
 function checkAppVersion() {
     try {
-        const savedVersion = 1.2.3
-            localStorage.getItem('slc_app_version');
+        const savedVersion = localStorage.getItem('slc_app_version');
         
         if (savedVersion !== CURRENT_APP_VERSION) {
             console.log(`Updating App: ${savedVersion} -> ${CURRENT_APP_VERSION}`);
@@ -15,6 +16,9 @@ function checkAppVersion() {
         console.warn("Local storage is blocked. Skipping version check.");
     }
 }
+
+// কলিং ফাংশন (যাতে পেজ লোড হলেই ভার্সন চেক করে)
+checkAppVersion();
 // ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
     apiKey: "AIzaSyBVw-llKk9Ia2yGMNI4t3awkX_RaNApNjQ",
@@ -4816,11 +4820,9 @@ sRule3Title: isBn ? "ম্যাচ ভিডিও জমাদান" : "Matc
     rule4Title: isBn ? "প্রাইস শেয়ারিং (Percentage)" : "Price Sharing (Percentage)",
     rule4Desc: isBn ? "নিলামে বিক্রি হওয়া মূল্যের <b>৭০%</b> পাবেন খেলোয়াড় নিজে এবং বাকি <b>৩০%</b> ক্লাব পাবে (ক্লাব এই ৩০% টাকা মোট প্রাইস মানিতে যুক্ত করে দিবে)।<br><br><span class='text-gold-400'>উদাহরণ:</span> কোনো খেলোয়াড়ের দাম ১০০ টাকা হলে, উক্ত খেলোয়াড় পাবেন ৭০ টাকা আর ক্লাব পাবে ৩০ টাকা।" : "From the final auction price, the player will receive <b>70%</b> and the club will retain <b>30%</b> (which will be added to the overall prize pool).<br><br><span class='text-gold-400'>Example:</span> If a player is sold for ৳100, the player receives ৳70 and the club receives ৳30.",
     
-    rule5Title: isBn ? "শৃঙ্খলা ও রেফারি" : "Disciplinary
- & Refereeing",
+    rule5Title: isBn ? "শৃঙ্খলা ও রেফারি" : "Disciplinary & Refereeing",
     rule5Desc: isBn ? "ম্যাচ রেফারির সিদ্ধান্তই চূড়ান্ত বলে গণ্য হবে।<br><br>কোনো খেলোয়াড় কোনো ম্যাচে <b>রেড কার্ড (Red Card)</b> দেখলে, উক্ত ম্যাচে প্রতিপক্ষ দল অটোমেটিক <b>১-০</b> গোলে জয়লাভ করবে। এবং রেড কার্ড দেখা খেলোয়াড় পরবর্তী ম্যাচের জন্য সাসপেন্ড থাকবেন।" : "The Match Referee's decision will be considered absolute and final.<br><br>If a player receives a <b>Red Card</b> in any match, the opponent team will automatically be awarded a <b>1-0</b> victory for that match. Additionally, the red-carded player will be suspended for the next match."
 };
-    
     const html = `
     <!-- Premium Header Area with Language Toggle -->
     <div class="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-transparent border border-white/10 rounded-[1.5rem] p-5 mb-5 relative overflow-hidden shadow-lg flex items-center justify-between">
