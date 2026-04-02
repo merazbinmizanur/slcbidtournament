@@ -5538,20 +5538,15 @@ function closeTOTRModal() {
 function selectTOTRRound(round, containerId) {
     selectedTOTRRound = round;
     closeTOTRModal();
-    // হালকা ডিলে দিয়ে রেন্ডার করছি যাতে মোডাল বন্ধ হওয়ার অ্যানিমেশনটা স্মুথ হয়
+    
     setTimeout(() => {
         renderTOTR(containerId);
     }, 150);
-    SFX.play('success');
-    SFX.vibrate([20, 30, 20]);
-}
-
-function selectTOTRRound(round, containerId) {
-    selectedTOTRRound = round;
-    // রি-রেন্ডার কল করার ফলে ড্রপডাউন এমনিতেই বন্ধ হয়ে যাবে
-    renderTOTR(containerId);
-    SFX.play('click');
-    SFX.vibrate(20);
+    
+    if(SFX) {
+        SFX.play('success');
+        SFX.vibrate([20, 30, 20]);
+    }
 }
 
 // ==================== AUTO-LINEUP ENGINE (ADMIN) ====================
