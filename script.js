@@ -1,23 +1,20 @@
-// ==========================================================
-const CURRENT_APP_VERSION = "1.1.1"; // যখন আপডেট করবেন, এই সংখ্যাটি পরিবর্তন করবেন
-
 function checkAppVersion() {
-    const savedVersion = localStorage.getItem('slc_app_version');
-    
-    if (savedVersion !== CURRENT_APP_VERSION) {
-        // নতুন ভার্সন পাওয়া গেছে
-        console.log(`Updating App: ${savedVersion} -> ${CURRENT_APP_VERSION}`);
+    try {
+        const savedVersion = 1.2.3
+            localStorage.getItem('slc_app_version');
         
-        // নতুন ভার্সন সেভ করা হচ্ছে
-        localStorage.setItem('slc_app_version', CURRENT_APP_VERSION);
-        
-        // ফোর্স রিলোড (ক্যাশ ক্লিয়ার সহ)
-        if (savedVersion) { // প্রথমবার লোড হলে রিলোড হবে না, শুধুমাত্র আপডেট হলে হবে
-            window.location.reload(true);
+        if (savedVersion !== CURRENT_APP_VERSION) {
+            console.log(`Updating App: ${savedVersion} -> ${CURRENT_APP_VERSION}`);
+            localStorage.setItem('slc_app_version', CURRENT_APP_VERSION);
+            
+            if (savedVersion) { 
+                window.location.reload(true);
+            }
         }
+    } catch (error) {
+        console.warn("Local storage is blocked. Skipping version check.");
     }
 }
-checkAppVersion();
 // ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
     apiKey: "AIzaSyBVw-llKk9Ia2yGMNI4t3awkX_RaNApNjQ",
