@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.2.5"; // নতুন ভার্সন
+const CURRENT_APP_VERSION = "1.2.6"; // নতুন ভার্সন
 
 function checkAppVersion() {
     try {
@@ -4072,6 +4072,18 @@ const konamiChanged = currentPlayer.konamiId !== konamiId;
 const deviceChanged = currentPlayer.deviceName !== deviceName;
 
 if (konamiChanged || deviceChanged) {
+    
+    if (currentPlayer.teamId) {
+        const hasOngoingMatch = state.matches.some(m => 
+            m.status === 'ongoing' && 
+            (m.team1Id === currentPlayer.teamId || m.team2Id === currentPlayer.teamId)
+        );
+        
+        if (hasOngoingMatch) {
+            toggleBtnLoading(false, btn);
+            return notify('Action Blocked! Your team has an ONGOING match. You cannot change info now.', 'lock');
+        }
+    }
     // 1. Check if it's a Knockout stage (by checking match round names)
     const isKnockout = state.matches.some(m => {
         const r = (m.round || '').toUpperCase();
