@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.2.6"; // নতুন ভার্সন
+const CURRENT_APP_VERSION = "1.2.7"; // নতুন ভার্সন
 
 function checkAppVersion() {
     try {
@@ -1239,11 +1239,124 @@ ${u.trxid ? `
 function renderAdminMatches() {
     const list = document.getElementById('a-matches-list');
     if (!list) return;
+    
     if (!state.matches || !state.matches.length) {
-        list.innerHTML = `<p class="text-[9px] text-slate-500 font-bold text-center py-8">No matches yet. Click Draw Matches.</p>`;
+        list.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-12 bg-slate-900/40 rounded-[1.5rem] border border-white/5 border-dashed">
+            <i data-lucide="calendar-x" class="w-8 h-8 text-slate-600 mb-3"></i>
+            <p class="text-[10px] text-slate-500 font-black text-center uppercase tracking-widest">No matches yet.<br>Click Draw Matches from Panel.</p>
+        </div>`;
+        lucide.createIcons();
         return;
     }
-    list.innerHTML = state.matches.map(m => renderTeamMatchCard(m, 'admin')).join('');
+    
+    // ১. স্ট্যাটাস অনুযায়ী ম্যাচগুলো ভাগ করা
+    const groupedByStatus = {
+        ongoing: [],
+        pending_lineup: [],
+        completed: []
+    };
+    
+    state.matches.forEach(m => {
+        if (groupedByStatus[m.status]) {
+            groupedByStatus[m.status].push(m);
+        } else {
+            groupedByStatus.pending_lineup.push(m); // Fallback
+        }
+    });
+    
+    // ২. রাউন্ড অনুযায়ী ম্যাচগুলো গ্রুপ করার হেল্পার ফাংশন
+    const groupByRound = (matchesArray) => {
+        const rounds = {};
+        matchesArray.forEach(m => {
+            const r = m.round || 'Group Stage';
+            if (!rounds[r]) rounds[r] = [];
+            rounds[r].push(m);
+        });
+        return rounds;
+    };
+    
+    let html = '';
+    
+    // ==========================================
+    // সেকশন ১: ONGOING MATCHES (চলমান ম্যাচসমূহ)
+    // ==========================================
+    if (groupedByStatus.ongoing.length > 0) {
+        html += `
+        <div class="mb-6">
+            <h3 class="text-[13px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-[0_0_8px_rgba(59,130,246,0.4)]">
+                <i data-lucide="play-circle" class="w-5 h-5 animate-pulse"></i> Ongoing Matches
+            </h3>`;
+        
+        const rounds = groupByRound(groupedByStatus.ongoing);
+        Object.keys(rounds).forEach(roundName => {
+            html += `
+            <div class="bg-blue-900/10 border border-blue-500/20 rounded-[1.5rem] p-4 mb-4 shadow-[0_0_15px_rgba(59,130,246,0.05)] relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+                <div class="flex items-center gap-2 text-[10px] font-black text-blue-300 uppercase tracking-widest mb-4 border-b border-blue-500/20 pb-2 pl-2">
+                    <i data-lucide="swords" class="w-3.5 h-3.5"></i> ${roundName}
+                </div>
+                <div class="space-y-3">
+                    ${rounds[roundName].map(m => renderTeamMatchCard(m, 'admin')).join('')}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+    
+    // ==========================================
+    // সেকশন ২: PENDING LINEUPS (যেগুলোর লাইনআপ বাকি)
+    // ==========================================
+    if (groupedByStatus.pending_lineup.length > 0) {
+        html += `
+        <div class="mb-6">
+            <h3 class="text-[13px] font-black text-gold-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]">
+                <i data-lucide="clock" class="w-5 h-5"></i> Pending Lineups
+            </h3>`;
+        
+        const rounds = groupByRound(groupedByStatus.pending_lineup);
+        Object.keys(rounds).forEach(roundName => {
+            html += `
+            <div class="bg-gold-900/10 border border-gold-500/20 rounded-[1.5rem] p-4 mb-4 shadow-[0_0_15px_rgba(245,158,11,0.05)] relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-gold-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
+                <div class="flex items-center gap-2 text-[10px] font-black text-gold-300 uppercase tracking-widest mb-4 border-b border-gold-500/20 pb-2 pl-2">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i> ${roundName}
+                </div>
+                <div class="space-y-3">
+                    ${rounds[roundName].map(m => renderTeamMatchCard(m, 'admin')).join('')}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+    
+    // ==========================================
+    // সেকশন ৩: COMPLETED MATCHES (শেষ হওয়া ম্যাচসমূহ)
+    // ==========================================
+    if (groupedByStatus.completed.length > 0) {
+        html += `
+        <div class="mb-2">
+            <h3 class="text-[13px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i> Completed Matches
+            </h3>`;
+        
+        const rounds = groupByRound(groupedByStatus.completed);
+        Object.keys(rounds).forEach(roundName => {
+            html += `
+            <div class="bg-emerald-900/10 border border-emerald-500/20 rounded-[1.5rem] p-4 mb-4 shadow-[0_0_15px_rgba(16,185,129,0.05)] relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+                <div class="flex items-center gap-2 text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4 border-b border-emerald-500/20 pb-2 pl-2">
+                    <i data-lucide="flag" class="w-3.5 h-3.5"></i> ${roundName}
+                </div>
+                <div class="space-y-3">
+                    ${rounds[roundName].map(m => renderTeamMatchCard(m, 'admin')).join('')}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+    
+    list.innerHTML = html;
     lucide.createIcons();
 }
 
@@ -2101,7 +2214,19 @@ async function executeSub() {
 function openMatchResultsModal(matchId) {
     activeMatchId = matchId;
     const m = state.matches.find(x => x.id === matchId);
-    let html = `<div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">`;
+    let html = '';
+    
+    if (state.role === 'admin') {
+        html += `
+        <div class="mb-4 p-3 bg-slate-950 border border-emerald-500/30 rounded-xl shadow-inner">
+            <label class="text-[9px] text-emerald-400 font-bold uppercase tracking-widest block mb-2"><i data-lucide="clipboard-paste" class="w-3 h-3 inline"></i> Auto Parse Result (Paste Text Here)</label>
+            <textarea id="auto-parse-text" rows="4" placeholder="Paste the messenger match result text here..." class="w-full p-2 bg-black/50 border border-white/10 rounded-lg text-white text-[10px] outline-none focus:border-emerald-500 custom-scrollbar mb-2"></textarea>
+            <button onclick="autoParseMatchText()" class="w-full py-3 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-600/40 transition-all active:scale-95 flex justify-center items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Extract & Update Scores</button>
+        </div>
+        `;
+    }
+    
+    html += `<div class="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">`;
     
     let allPlayersInMatch = [];
     
@@ -3828,6 +3953,50 @@ function renderInfoTab(containerId, searchQuery = '') {
     container.innerHTML = html;
     lucide.createIcons();
 }
+
+// ==================== TOTR ACHIEVEMENT ENGINE ====================
+function getAllTOTRData() {
+    const totrData = {};
+    // শুধু কমপ্লিট হওয়া রাউন্ডগুলো ফিল্টার করা
+    const allRounds = [...new Set(state.matches.filter(m => m.status === 'completed').map(m => (m.round || 'GROUP STAGE').toUpperCase()))];
+    
+    allRounds.forEach(round => {
+        const roundMatches = state.matches.filter(m => (m.round || 'GROUP STAGE').toUpperCase() === round && m.status === 'completed');
+        if (roundMatches.length === 0) return;
+        
+        const roundStats = {};
+        roundMatches.forEach(m => {
+            (m.matchups || []).forEach(mu => {
+                [{ id: mu.p1Id, myScore: mu.score1, oppScore: mu.score2 }, { id: mu.p2Id, myScore: mu.score2, oppScore: mu.score1 }].forEach(pl => {
+                    if (!pl.id) return;
+                    if (!roundStats[pl.id]) roundStats[pl.id] = { pts: 0, goals: 0, gd: 0 };
+                    roundStats[pl.id].goals += (pl.myScore || 0);
+                    roundStats[pl.id].gd += ((pl.myScore || 0) - (pl.oppScore || 0));
+                    roundStats[pl.id].pts += (pl.myScore * 10);
+                    if (pl.oppScore === 0) roundStats[pl.id].pts += 15;
+                    if (pl.myScore > pl.oppScore) roundStats[pl.id].pts += 20;
+                    else if (pl.myScore === pl.oppScore) roundStats[pl.id].pts += 5;
+                });
+            });
+            if (m.mvpId && roundStats[m.mvpId]) roundStats[m.mvpId].pts += 30;
+        });
+        
+        // টপ ৬ জন বের করা
+        const top6 = Object.keys(roundStats)
+            .map(id => ({ id, ...roundStats[id] }))
+            .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.goals - a.goals)
+            .slice(0, 6);
+        
+        // ডেটা স্টোর করা
+        top6.forEach(p => {
+            if (!totrData[p.id]) totrData[p.id] = { count: 0, rounds: [] };
+            totrData[p.id].count++;
+            totrData[p.id].rounds.push(round);
+        });
+    });
+    return totrData;
+}
+
 function getPlayerStatsData(playerId) {
     let played = 0, win = 0, draw = 0, lose = 0, gf = 0, ga = 0, pts = 0;
     let history =[];
@@ -3872,8 +4041,12 @@ function getPlayerStatsData(playerId) {
 function generatePlayerProfileStatsHtml(playerId) {
     const stats = getPlayerStatsData(playerId);
     
+    // TOTR ডাটা কল করা হচ্ছে
+    const totrDataMap = getAllTOTRData();
+    const myTotr = totrDataMap[playerId] || { count: 0, rounds: [] };
+    
     let html = `
-    <div class="mt-3 bg-slate-950 rounded-xl border border-white/5 overflow-hidden shadow-inner">
+    <div class="mt-3 bg-slate-950 rounded-xl border border-white/5 overflow-hidden shadow-inner flex flex-col">
         <div class="bg-black/50 p-2 border-b border-white/5 flex items-center gap-1.5">
             <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-emerald-400"></i>
             <span class="text-[9px] font-black text-white uppercase tracking-widest">Match Statistics</span>
@@ -3912,6 +4085,25 @@ function generatePlayerProfileStatsHtml(playerId) {
                 <div class="text-[6px] text-gold-500/70 font-bold uppercase tracking-widest mt-0.5">Pts</div>
             </div>
         </div>
+        
+        <!-- TOTR Premium Achievement Banner -->
+        ${myTotr.count > 0 ? `
+        <div class="bg-gradient-to-r from-gold-900/40 via-gold-800/10 to-gold-900/40 border-t border-gold-500/30 p-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-gold-500/20 border border-gold-500/50 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)] flex-shrink-0">
+                    <i data-lucide="award" class="w-4 h-4 text-gold-400"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-[10px] font-black text-gold-400 uppercase tracking-widest leading-none mb-1">Team of the Round</div>
+                    <div class="text-[7px] text-gold-500/80 font-bold uppercase truncate pr-2 max-w-[150px] leading-tight">${myTotr.rounds.join(' • ')}</div>
+                </div>
+            </div>
+            <div class="bg-slate-950 px-3 py-1.5 rounded-xl border border-gold-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)] flex-shrink-0 flex items-center gap-1">
+                <span class="text-[8px] text-slate-400 font-bold">TOTR</span>
+                <span class="text-[13px] font-black text-white">×${myTotr.count}</span>
+            </div>
+        </div>
+        ` : ''}
     </div>
     `;
     return html;
@@ -4249,10 +4441,21 @@ function renderPlayerStats(containerId) {
     if (!container) return;
     
     const stats = {};
+    const totrDataMap = getAllTOTRData(); // From the TOTR engine
+    
+    // Initialize stats object
     state.players.forEach(p => {
-        stats[p.id] = { goals: 0, matchWins: 0, mvps: 0, playerObj: p };
+        stats[p.id] = {
+            goals: 0,
+            matchWins: 0,
+            mvps: 0,
+            totrCount: totrDataMap[p.id] ? totrDataMap[p.id].count : 0,
+            pottPts: 0, // NEW: Player of the Tournament Points
+            playerObj: p
+        };
     });
     
+    // Calculate raw stats from completed matches
     const completedMatches = state.matches.filter(m => m.status === 'completed');
     completedMatches.forEach(m => {
         if (m.mvpId && stats[m.mvpId]) stats[m.mvpId].mvps += 1;
@@ -4269,19 +4472,117 @@ function renderPlayerStats(containerId) {
         });
     });
     
+    // Calculate POTT Points based on the formula
     const playersArr = Object.values(stats);
+    playersArr.forEach(p => {
+        p.pottPts = (p.goals * 10) + (p.matchWins * 20) + (p.mvps * 30) + (p.totrCount * 50);
+    });
     
-    // Sort all available ranking players
+    // Sorting arrays for all categories
+    const allPott = [...playersArr].filter(p => p.pottPts > 0).sort((a, b) => b.pottPts - a.pottPts || b.goals - a.goals);
     const allScorers = [...playersArr].filter(p => p.goals > 0).sort((a, b) => b.goals - a.goals);
     const allWins = [...playersArr].filter(p => p.matchWins > 0).sort((a, b) => b.matchWins - a.matchWins);
     const allMvps = [...playersArr].filter(p => p.mvps > 0).sort((a, b) => b.mvps - a.mvps);
+    const allTotrs = [...playersArr].filter(p => p.totrCount > 0).sort((a, b) => b.totrCount - a.totrCount);
     
-    // Limit to Top 3 for default view
+    // Top limits
+    const top3Pott = allPott.slice(0, 3);
     const topScorers = allScorers.slice(0, 3);
     const topWins = allWins.slice(0, 3);
     const topMvps = allMvps.slice(0, 3);
+    const topTotrs = allTotrs.slice(0, 3);
     
-    let html = `
+    let html = '';
+    
+    // ==========================================
+// ==========================================
+// 1. PLAYER OF THE TOURNAMENT (POTT) SECTION
+// ==========================================
+if (top3Pott.length > 0) {
+    const p1 = top3Pott[0];
+    const p2 = top3Pott[1];
+    const p3 = top3Pott[2];
+    
+    html += `
+        <div class="mb-6 bg-slate-900/40 border border-white/5 rounded-[1.5rem] p-3 shadow-lg relative overflow-hidden">
+            <!-- Background Glow -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-20 bg-gradient-to-r from-purple-500/10 via-gold-500/10 to-rose-500/10 blur-xl pointer-events-none"></div>
+            
+            <!-- Premium Heading & Rules Badge -->
+            <div class="flex items-center justify-between mb-3 relative z-10">
+                <h3 class="text-[12px] font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-rose-400 uppercase tracking-[0.15em] flex items-center gap-1.5 drop-shadow-md">
+                    <i data-lucide="crown" class="w-4 h-4 text-purple-400"></i> POTT Leaderboard
+                </h3>
+                <div class="text-[6px] font-bold text-slate-300 bg-black/60 px-2 py-1 rounded-md border border-white/10 tracking-widest flex items-center gap-1">
+                    <span class="text-emerald-400">G:10</span> | <span class="text-blue-400">W:20</span> | <span class="text-gold-400">M:30</span> | <span class="text-purple-400">T:50</span>
+                </div>
+            </div>
+
+            <!-- 1st Place (The King) - Compact Horizontal -->
+            <div class="relative bg-gradient-to-r from-gold-900/80 to-slate-900 border border-gold-500/40 rounded-[1.2rem] p-3 flex items-center gap-3 shadow-[0_0_15px_rgba(245,158,11,0.2)] overflow-hidden mb-2 group">
+                <div class="absolute left-0 top-0 w-16 h-full bg-gold-500/20 blur-xl pointer-events-none group-hover:bg-gold-500/30 transition-all"></div>
+                
+                <!-- Avatar & Crown -->
+                <div class="relative flex-shrink-0 z-10">
+                    <i data-lucide="crown" class="absolute -top-3 -left-2 w-5 h-5 text-gold-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)] z-20 -rotate-12"></i>
+                    ${getAvatarUI(p1.playerObj, 'w-12', 'h-12', 'rounded-[0.9rem] border-2 border-gold-400 shadow-md object-cover relative z-10 bg-slate-950')}
+                    <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-gold-500 to-amber-500 text-black text-[7px] font-black px-2 py-0.5 rounded shadow-lg z-20 border border-gold-300/50">#1</div>
+                </div>
+                
+                <!-- Details -->
+                <div class="flex-1 min-w-0 z-10">
+                    <div class="text-[13px] font-black text-white uppercase truncate leading-tight">${p1.playerObj.name}</div>
+                    <div class="text-[7px] text-gold-400 font-bold uppercase truncate mb-1 tracking-widest">${getTeamName(p1.playerObj.teamId)}</div>
+                    <div class="flex gap-1.5 mt-1">
+                        <span class="text-[7px] bg-black/60 border border-white/5 px-1.5 py-0.5 rounded font-bold text-slate-400"><span class="text-emerald-400">${p1.goals}</span> GL</span>
+                        <span class="text-[7px] bg-black/60 border border-white/5 px-1.5 py-0.5 rounded font-bold text-slate-400"><span class="text-blue-400">${p1.matchWins}</span> W</span>
+                        <span class="text-[7px] bg-black/60 border border-white/5 px-1.5 py-0.5 rounded font-bold text-slate-400"><span class="text-gold-400">${p1.mvps}</span> MVP</span>
+                    </div>
+                </div>
+                
+                <!-- Points -->
+                <div class="text-right z-10 pl-2 border-l border-gold-500/20">
+                    <div class="text-[20px] font-black text-gold-400 leading-none drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] tracking-tighter">${p1.pottPts}</div>
+                    <div class="text-[6px] text-gold-500 uppercase tracking-[0.2em] mt-0.5 font-black">PTS</div>
+                </div>
+            </div>
+
+            <!-- 2nd & 3rd Place Grid (Compact) -->
+            <div class="grid grid-cols-2 gap-2">
+                <!-- 2nd Place (Silver) -->
+                ${p2 ? `
+                <div class="bg-gradient-to-r from-slate-800/80 to-slate-900 border border-slate-400/30 rounded-xl p-2 flex items-center gap-2.5 relative overflow-hidden shadow-inner">
+                    <div class="absolute left-0 top-0 w-1 h-full bg-slate-400 shadow-[0_0_10px_rgba(148,163,184,0.8)]"></div>
+                    <div class="relative flex-shrink-0">
+                        ${getAvatarUI(p2.playerObj, 'w-8', 'h-8', 'rounded-lg border border-slate-400/50 object-cover bg-slate-950 relative z-10')}
+                        <div class="absolute -bottom-1 -right-1 bg-slate-500 text-white text-[6px] font-black px-1.5 rounded-sm z-20">#2</div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[9px] font-black text-white uppercase truncate">${p2.playerObj.name}</div>
+                        <div class="text-[12px] font-black text-slate-300 leading-none mt-0.5 drop-shadow-sm">${p2.pottPts} <span class="text-[5px] text-slate-500 tracking-widest">PTS</span></div>
+                    </div>
+                </div>` : '<div></div>'}
+
+                <!-- 3rd Place (Bronze) -->
+                ${p3 ? `
+                <div class="bg-gradient-to-r from-amber-900/40 to-slate-900 border border-amber-600/30 rounded-xl p-2 flex items-center gap-2.5 relative overflow-hidden shadow-inner">
+                    <div class="absolute left-0 top-0 w-1 h-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
+                    <div class="relative flex-shrink-0">
+                        ${getAvatarUI(p3.playerObj, 'w-8', 'h-8', 'rounded-lg border border-amber-600/50 object-cover bg-slate-950 relative z-10')}
+                        <div class="absolute -bottom-1 -right-1 bg-amber-600 text-white text-[6px] font-black px-1.5 rounded-sm z-20">#3</div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[9px] font-black text-white uppercase truncate">${p3.playerObj.name}</div>
+                        <div class="text-[12px] font-black text-amber-500 leading-none mt-0.5 drop-shadow-sm">${p3.pottPts} <span class="text-[5px] text-slate-500 tracking-widest">PTS</span></div>
+                    </div>
+                </div>` : '<div></div>'}
+            </div>
+        </div>`;
+}
+
+    // 2. EXISTING STATS SECTIONS
+    // ==========================================
+    html += `
     <div class="mb-6">
         <h3 class="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="goal" class="w-4 h-4"></i> Golden Boot (Goals)</h3>
         ${generateStatsListHtml(topScorers, 'Goals', 'text-emerald-400', 'goals')}
@@ -4292,10 +4593,15 @@ function renderPlayerStats(containerId) {
         ${generateStatsListHtml(topWins, 'Wins', 'text-blue-400', 'matchWins')}
         ${allWins.length > 3 ? `<button onclick="openAllStatsModal('wins')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-blue-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-blue-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allWins.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
     </div>
-    <div class="mb-2">
+    <div class="mb-6">
         <h3 class="text-[11px] font-black text-gold-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="star" class="w-4 h-4"></i> Most Valuable Player</h3>
         ${generateStatsListHtml(topMvps, 'MVPs', 'text-gold-400', 'mvps')}
         ${allMvps.length > 3 ? `<button onclick="openAllStatsModal('mvps')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-gold-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-gold-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allMvps.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
+    </div>
+    <div class="mb-2">
+        <h3 class="text-[11px] font-black text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i data-lucide="award" class="w-4 h-4"></i> Most TOTR Appearances</h3>
+        ${generateStatsListHtml(topTotrs, 'Times', 'text-rose-400', 'totrCount')}
+        ${allTotrs.length > 3 ? `<button onclick="openAllStatsModal('totr')" class="w-full mt-2 py-3.5 bg-slate-900 border border-white/10 text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-rose-500/30 transition-all shadow-inner flex items-center justify-center gap-2">View All ${allTotrs.length} Players <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>` : ''}
     </div>`;
     
     container.innerHTML = html;
@@ -4304,8 +4610,16 @@ function renderPlayerStats(containerId) {
 
 function openAllStatsModal(type) {
     const stats = {};
+    const totrDataMap = getAllTOTRData(); // কলিং নিউ ফাংশন
+    
     state.players.forEach(p => {
-        stats[p.id] = { goals: 0, matchWins: 0, mvps: 0, playerObj: p };
+        stats[p.id] = {
+            goals: 0,
+            matchWins: 0,
+            mvps: 0,
+            totrCount: totrDataMap[p.id] ? totrDataMap[p.id].count : 0,
+            playerObj: p
+        };
     });
     
     const completedMatches = state.matches.filter(m => m.status === 'completed');
@@ -4344,13 +4658,19 @@ function openAllStatsModal(type) {
         colorClass = 'text-gold-400';
         valueKey = 'mvps';
         typeLabel = 'MVPs';
+    } else if (type === 'totr') {
+        list = playersArr.filter(p => p.totrCount > 0).sort((a, b) => b.totrCount - a.totrCount);
+        title = '<i data-lucide="award" class="w-4 h-4 text-rose-400 inline mb-0.5"></i> Most TOTR Appearances';
+        colorClass = 'text-rose-400';
+        valueKey = 'totrCount';
+        typeLabel = 'Times';
     }
     
     const html = generateStatsListHtml(list, typeLabel, colorClass, valueKey);
     
     document.getElementById('generic-modal-title').innerHTML = title;
     document.getElementById('generic-modal-body').innerHTML = `<div class="space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-2">${html}</div>`;
-    document.getElementById('generic-modal-btn').classList.add('hidden'); // We only need it for viewing
+    document.getElementById('generic-modal-btn').classList.add('hidden');
     
     openModal('modal-generic');
     lucide.createIcons();
@@ -4662,7 +4982,8 @@ function openMatchResultPreview(matchId) {
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-4xl font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)] tracking-tighter">${m.mainScore1 || 0}</span>
                     <span class="text-lg font-black text-slate-600">-</span>
-                    <span class="text-4xl font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)] tracking-tighter">${m.mainScore2 || 0}</span>
+                    <span class="text-4xl font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.6)] tracking-tig
+hter">${m.mainScore2 || 0}</span>
                 </div>
             </div>
 
@@ -5298,20 +5619,38 @@ function renderTOTR(containerId) {
         return;
     }
 
-    // ডিফল্টভাবে সর্বশেষ রাউন্ড সিলেক্ট করা
+    // ২. স্মার্ট রাউন্ড সিলেকশন (FIXED)
     if (!selectedTOTRRound || !allRounds.includes(selectedTOTRRound)) {
-        selectedTOTRRound = allRounds[allRounds.length - 1];
+        // এমন রাউন্ড খুঁজুন যেখানে অন্তত ১টি ম্যাচ 'completed'
+        const roundsWithData = allRounds.filter(r =>
+            state.matches.some(m => (m.round || 'GROUP STAGE').toUpperCase() === r && m.status === 'completed')
+        );
+
+        if (roundsWithData.length > 0) {
+            // সর্বশেষ যে রাউন্ডে ডেটা আছে, সেটা ডিফল্ট হিসেবে নিবে (যেন ইউজার সুন্দর পোস্টার দেখতে পায়)
+            selectedTOTRRound = roundsWithData[roundsWithData.length - 1];
+        } else {
+            // যদি পুরো টুর্নামেন্টে কোনো ম্যাচই খেলা না হয়ে থাকে
+            const ongoingMatch = state.matches.find(m => m.status !== 'completed');
+            selectedTOTRRound = ongoingMatch ? (ongoingMatch.round || 'GROUP STAGE').toUpperCase() : allRounds[allRounds.length - 1];
+        }
     }
 
-    // ২. নির্বাচিত রাউন্ডের ম্যাচগুলো ফিল্টার করা
+    // নির্বাচিত রাউন্ডের ম্যাচগুলো ফিল্টার করা
     const roundMatches = state.matches.filter(m => (m.round || 'GROUP STAGE').toUpperCase() === selectedTOTRRound);
     
     // রাউন্ডটি কি শেষ? (যদি সব ম্যাচ 'completed' হয়)
     const isRoundCompleted = roundMatches.length > 0 && roundMatches.every(m => m.status === 'completed');
 
-    // তারিখ ক্যালকুলেশন
+    // তারিখ ক্যালকুলেশন (FIXED DATE PARSING)
     let dateStr = 'TBD';
-    const dates = roundMatches.map(m => new Date(m.deadline || m.createdAt)).filter(d => !isNaN(d));
+    const dates = roundMatches.map(m => {
+        if (m.deadline) return new Date(m.deadline);
+        if (m.createdAt && typeof m.createdAt.toDate === 'function') return m.createdAt.toDate();
+        if (m.createdAt && m.createdAt.seconds) return new Date(m.createdAt.seconds * 1000);
+        return new Date();
+    }).filter(d => !isNaN(d));
+
     if (dates.length > 0) {
         const minDate = new Date(Math.min(...dates)).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
         const maxDate = new Date(Math.max(...dates)).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
@@ -5342,19 +5681,19 @@ function renderTOTR(containerId) {
         if (m.mvpId && playerStats[m.mvpId]) playerStats[m.mvpId].pts += 30;
     });
 
-    // র‍্যাংকিং তৈরি (পয়েন্ট -> গোল ডিফারেন্স -> গোল)
+    // র‍্যাংকিং তৈরি
     const rankedPlayers = Object.keys(playerStats)
         .map(id => ({ id, ...playerStats[id], obj: state.players.find(p => p.id === id) }))
         .filter(p => p.obj)
         .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.goals - a.goals);
 
-// ৪. UI জেনারেট করা
-let html = `
+    // ৪. UI জেনারেট করা (FIXED MODAL ID AND TOGGLE)
+    let html = `
     <!-- Premium Header & Trigger Button -->
     <div class="flex items-center justify-between bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-[1.2rem] p-4 mb-5 shadow-lg relative z-20">
         <div>
             <span class="text-[7px] text-slate-500 font-bold uppercase tracking-widest block mb-1">Match Round</span>
-            <button onclick="openTOTRModal()" class="flex items-center gap-2 text-[12px] font-black text-gold-400 uppercase tracking-widest active:scale-95 transition-transform">
+            <button onclick="openTOTRModal('${containerId}')" class="flex items-center gap-2 text-[12px] font-black text-gold-400 uppercase tracking-widest active:scale-95 transition-transform">
                 ${selectedTOTRRound} <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
             </button>
         </div>
@@ -5363,12 +5702,10 @@ let html = `
         </div>
     </div>
     
-    <!-- Premium Round Selection Modal (Fixed Overlay) -->
-    <div id="modal-totr-round" class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md hidden flex-col justify-center items-center p-4 transition-all">
-        <!-- Click outside to close -->
-        <div class="absolute inset-0" onclick="closeTOTRModal()"></div>
+    <!-- Premium Round Selection Modal (Fixed Overlay & ID) -->
+    <div id="modal-totr-${containerId}" class="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md hidden flex-col justify-center items-center p-4 transition-all">
+        <div class="absolute inset-0" onclick="closeTOTRModal('${containerId}')"></div>
         
-        <!-- Modal Card -->
         <div class="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-[2rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-pop-in flex flex-col max-h-[80vh]">
             
             <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
@@ -5376,12 +5713,11 @@ let html = `
                     <h3 class="text-[14px] font-black text-white uppercase tracking-widest">Select Matchday</h3>
                     <p class="text-[8px] text-slate-400 font-bold uppercase mt-1">View Team of the Round</p>
                 </div>
-                <button onclick="closeTOTRModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 transition-all active:scale-90">
+                <button onclick="closeTOTRModal('${containerId}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 transition-all active:scale-90">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
 
-            <!-- Scrollable List (Now scrolls perfectly) -->
             <div class="overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2 space-y-2 pb-2">
                 ${allRounds.map(r => `
                     <button onclick="selectTOTRRound('${r}', '${containerId}')" class="w-full flex items-center justify-between p-4 rounded-xl border transition-all active:scale-95 ${r === selectedTOTRRound ? 'bg-gradient-to-r from-gold-500/10 to-transparent border-gold-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/10'}">
@@ -5394,7 +5730,7 @@ let html = `
     </div>`;
 
     if (rankedPlayers.length === 0) {
-        html += `<div class="text-center py-16"><p class="text-[10px] font-bold text-slate-500 uppercase">No Match Data Available Yet</p></div>`;
+        html += `<div class="text-center py-16"><p class="text-[10px] font-bold text-slate-500 uppercase">Waiting For Match Results To Be Updated</p></div>`;
         container.innerHTML = html; lucide.createIcons(); return;
     }
 
@@ -5425,70 +5761,101 @@ let html = `
         });
         html += `</div>`;
     } else {
-        // Phase 2: Official Team of the Round
+        // Phase 2: Official Team of the Round (Premium Poster Design)
         const top6 = rankedPlayers.slice(0, 6);
-        
-        // 2-2-2 Formation Render
-        const rows = [top6.slice(0,2), top6.slice(2,4), top6.slice(4,6)];
-        
-        let pitchHtml = '';
-        rows.forEach((rowPlayers, rowIndex) => {
-            pitchHtml += `<div class="flex justify-evenly w-full relative z-10 mb-2">`;
-            rowPlayers.forEach(p => {
-                // OVR Calculation (Base 80 + Points/10, Max 99)
-                const ovr = Math.min(99, 80 + Math.floor(p.pts / 10));
+
+        let cardsHtml = '';
+        top6.forEach((p, index) => {
+            const ovr = Math.min(99, 80 + Math.floor(p.pts / 10));
+            const teamName = getTeamName(p.obj.teamId);
+            const teamLogo = state.managers.find(m => m.id === p.obj.teamId)?.logo;
+            
+            const rankColor = index === 0 ? 'text-gold-400 bg-gold-500/20 border-gold-500/50' :
+                index === 1 ? 'text-slate-300 bg-slate-400/20 border-slate-400/50' :
+                index === 2 ? 'text-amber-600 bg-amber-600/20 border-amber-600/50' :
+                'text-emerald-400 bg-emerald-500/20 border-emerald-500/50';
+            
+            cardsHtml += `
+            <div class="premium-totr-card flex flex-col items-center p-3 relative h-full">
+                <div class="card-glow"></div>
                 
-                pitchHtml += `
-                <div class="totr-card w-[90px] h-[125px] flex flex-col items-center justify-between pt-1 pb-2">
-                    <div class="totr-card-inner w-full h-full flex flex-col items-center justify-between">
-                        <!-- Top Row: OVR & Logo -->
-                        <div class="flex justify-between w-full px-1.5 items-start">
-                            <span class="text-[14px] font-black text-gold-400 drop-shadow-md leading-none">${ovr}</span>
-                            ${getAvatarUI({name: getTeamName(p.obj.teamId), avatar: state.managers.find(m=>m.id===p.obj.teamId)?.logo}, 'w-4', 'h-4', 'rounded-full object-contain')}
+                <div class="w-full flex justify-between items-start z-10 mb-2 relative">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[18px] font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gold-400 drop-shadow-md leading-none">${ovr}</span>
+                        <span class="text-[6px] font-black text-gold-500/80 uppercase tracking-widest mt-0.5">OVR</span>
+                    </div>
+                    <div class="absolute left-1/2 -translate-x-1/2 top-0 flex items-center justify-center w-5 h-5 rounded-full border ${rankColor} shadow-inner text-[10px] font-black">
+                        ${index + 1}
+                    </div>
+                    ${getAvatarUI({name: teamName, avatar: teamLogo}, 'w-6', 'h-6', 'rounded-md object-contain bg-black/40 border border-white/10 p-0.5')}
+                </div>
+                
+                <div class="relative z-10 mb-2">
+                    ${getAvatarUI(p.obj, 'w-14', 'h-14', 'rounded-full border-2 border-gold-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)] object-cover')}
+                </div>
+                
+                <div class="w-full flex-1 flex flex-col justify-end items-center z-10 mt-auto">
+                    <h4 class="text-[11px] font-black text-white uppercase text-center leading-tight break-words whitespace-normal w-full px-1 mb-1">${p.obj.name}</h4>
+                    <p class="text-[7px] font-bold text-slate-400 uppercase tracking-widest text-center truncate w-full mb-2">${teamName !== p.obj.teamId ? teamName : 'Free Agent'}</p>
+                    <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-full px-2.5 py-1 shadow-inner">
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] font-black text-emerald-400 leading-none">${p.goals}</span>
+                            <span class="text-[6px] font-black text-slate-500 mt-0.5">GL</span>
                         </div>
-                        <!-- Player Image -->
-                        ${getAvatarUI(p.obj, 'w-12', 'h-12', 'rounded-full border-2 border-gold-500/50 shadow-lg object-cover')}
-                        
-                        <!-- Name & Stats -->
-                        <div class="w-full mt-1">
-                            <div class="text-[8px] font-black text-white uppercase truncate px-1">${p.obj.name}</div>
-                            <div class="text-[6px] font-bold text-slate-300 uppercase tracking-widest mt-0.5 bg-black/50 mx-1 rounded py-0.5">
-                                <span class="text-emerald-400">${p.goals}</span> GL <span class="text-slate-500">|</span> <span class="text-gold-400">${p.pts}</span> PT
-                            </div>
+                        <div class="w-[1px] h-2.5 bg-white/20"></div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] font-black text-gold-400 leading-none">${p.pts}</span>
+                            <span class="text-[6px] font-black text-slate-500 mt-0.5">PT</span>
                         </div>
                     </div>
-                </div>`;
-            });
-            pitchHtml += `</div>`;
+                </div>
+            </div>`;
         });
 
         html += `
-        <!-- Screenshot Controls -->
         <div class="flex items-center justify-between mb-4 hide-on-screenshot">
             <div>
                 <h2 class="text-[14px] font-black text-gold-400 uppercase tracking-[0.2em]"><i data-lucide="award" class="w-4 h-4 inline pb-1"></i> Official TOTR</h2>
             </div>
-            <button onclick="takeTOTRScreenshot()" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
-                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Capture
+            
+            <button onclick="takeTOTRScreenshot()" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)] active:scale-95 transition-all">
+                <i data-lucide="camera" class="w-4 h-4"></i> Capture
             </button>
         </div>
-
-        <!-- The Virtual Pitch Container -->
-        <div class="relative w-full aspect-[3/4.2] max-w-[360px] mx-auto rounded-[1.5rem] overflow-hidden border-2 border-gold-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-gradient-to-b from-[#022c16] via-[#064e3b] to-[#022c16]">
-            <!-- Pitch Lines -->
-            <div class="absolute inset-0 border-[1.5px] border-white/10 m-3 rounded-lg pointer-events-none z-0"></div>
-            <div class="absolute top-1/2 left-0 w-full h-[1.5px] bg-white/10 -translate-y-1/2 pointer-events-none z-0"></div>
-            <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[1.5px] border-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0"></div>
+        <div id="totr-export-card" class="relative w-full max-w-[400px] mx-auto rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-slate-950 transition-all duration-300 cursor-pointer" title="Tap to close screenshot mode">
             
-            <!-- Cards Container -->
-            <div class="relative z-10 w-full h-full flex flex-col justify-evenly py-4">
-                ${pitchHtml}
-            </div>
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.1)_0%,transparent_70%)] pointer-events-none z-0"></div>
+            <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none z-0"></div>
+            <div class="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 blur-3xl rounded-full pointer-events-none z-0"></div>
+            <div class="relative z-10 w-full h-full flex flex-col py-6 px-4">
+<div class="text-center mb-6 relative z-10">
+                    <!-- Premium Club & Tournament Header -->
+                    <div class="flex items-center justify-center gap-3 mb-4 mx-auto w-fit bg-slate-900/60 p-2.5 pr-4 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                        <img src="logo.png" class="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]" alt="Logo" onerror="this.style.display='none'">
+                        <div class="text-left border-l border-white/10 pl-3">
+                            <h2 class="text-[11px] font-black text-white uppercase tracking-[0.2em] leading-tight drop-shadow-md">Synthex Legion Chronicles</h2>
+                            <p class="text-[7px] font-bold text-gold-400 uppercase tracking-[0.15em] mt-0.5 flex items-center gap-1"><i data-lucide="swords" class="w-2.5 h-2.5"></i> SLC BID TOURNAMENT - S14</p>
+                        </div>
+                    </div>
 
-            <!-- Watermark (Only visible during screenshot) -->
-            <div class="totr-watermark absolute bottom-4 left-0 w-full flex-col items-center justify-center z-20">
-                <h1 class="text-[12px] font-black text-gold-400 uppercase tracking-[0.4em] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">TEAM OF THE ROUND</h1>
-                <p class="text-[7px] font-black text-white tracking-widest uppercase mt-1 bg-black/60 px-3 py-1 rounded-full border border-white/10">${selectedTOTRRound}</p>
+                    <!-- TOTR Title -->
+                    <h1 class="text-[18px] font-black text-transparent bg-clip-text bg-gradient-to-r from-gold-200 via-gold-400 to-gold-200 uppercase tracking-[0.2em] drop-shadow-md">Team Of The Round</h1>
+                    
+                    <div class="inline-flex items-center gap-1.5 bg-black/50 border border-gold-500/30 px-4 py-1.5 mt-2 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_5px_#34d399]"></div>
+                        <span class="text-[8px] font-black text-gold-400 uppercase tracking-widest">${selectedTOTRRound}</span>
+                    </div>
+                </div>
+<div class="grid grid-cols-2 gap-3 md:gap-4 w-full mb-6">
+                    ${cardsHtml}
+                </div>
+                
+                <!-- Footer Watermark Fixed (Absolute পজিশন সরানো হয়েছে) -->
+                <div class="w-full flex flex-col items-center justify-center z-20 mt-auto pt-2">
+                    <div class="h-[1px] w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent mb-2.5"></div>
+                    <p class="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.4em] drop-shadow-md">Synthex Legion Chronicles</p>
+                    <p class="text-[5.5px] font-bold text-slate-600 mt-1.5 uppercase tracking-widest">Official Tournament Stats</p>
+                </div>
             </div>
         </div>
         `;
@@ -5499,45 +5866,89 @@ let html = `
 }
 
 function takeTOTRScreenshot() {
-    // স্ক্রিনশট মোড অন করা (UI হাইড হবে, ওয়াটারমার্ক শো হবে)
+    if (!document.getElementById('totr-screenshot-style')) {
+        const style = document.createElement('style');
+        style.id = 'totr-screenshot-style';
+        style.innerHTML = `
+            body.screenshot-mode { overflow: hidden !important; }
+            body.screenshot-mode .hide-on-screenshot { opacity: 0 !important; visibility: hidden !important; }
+            
+            body.screenshot-mode #totr-export-card {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                /* scale(0.85) দিয়ে কার্ডটি ছোট করা হয়েছে */
+                transform: translate(-50%, -50%) scale(0.85) !important;
+                z-index: 9999999 !important;
+                width: 360px !important;
+                /* আলাদা ব্যাকগ্রাউন্ড না দিয়ে বিশাল একটি শ্যাডো দেওয়া হয়েছে যা চারপাশ ডার্ক করে দিবে */
+                box-shadow: 0 0 0 3000px #020617, 0 20px 50px rgba(0,0,0,0.8) !important; 
+                margin: 0 !important;
+            }
+            
+            /* ছোট মোবাইলের জন্য আরও একটু ছোট করা */
+            @media (max-width: 380px) {
+                body.screenshot-mode #totr-export-card {
+                    transform: translate(-50%, -50%) scale(0.75) !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    const poster = document.getElementById('totr-export-card');
+    if (!poster) return;
+    
+    // মোড অন করা
     document.body.classList.add('screenshot-mode');
     
-    // একটি সাউন্ড ইফেক্ট ও ভাইব্রেশন দেওয়া (ক্যামেরা ক্লিকের মতো)
-    SFX.play('success'); 
-    SFX.vibrate(50);
+    if (SFX) {
+        SFX.play('success');
+        SFX.vibrate([50, 50]);
+    }
     
-    notify('Screenshot Mode Active! Take your screenshot now.', 'camera');
-
-    // ৩ সেকেন্ড পর অটোমেটিক নরমাল মোডে ফিরে আসবে
-    setTimeout(() => {
+    notify('📸 Screenshot Mode! You have 10 Seconds.', 'camera');
+    
+    // আগের কোনো টাইমার থাকলে বাতিল করা
+    if (window.screenshotTimer) clearTimeout(window.screenshotTimer);
+    
+    // ১০ সেকেন্ড পর অটোমেটিক নরমাল মোডে ফিরে যাওয়া
+    window.screenshotTimer = setTimeout(() => {
         document.body.classList.remove('screenshot-mode');
-    }, 3000);
+    }, 10000);
+    
+    // স্ক্রিনশট নেওয়া শেষ হলে কার্ডের উপর ট্যাপ করে সাথে সাথে বন্ধ করার সুবিধা
+    poster.onclick = function() {
+        if (document.body.classList.contains('screenshot-mode')) {
+            document.body.classList.remove('screenshot-mode');
+            clearTimeout(window.screenshotTimer);
+        }
+    };
 }
 
-// ==================== CUSTOM TOTR MODAL LOGIC ====================
-function openTOTRModal() {
-    const modal = document.getElementById('modal-totr-round');
+// ==================== CUSTOM TOTR MODAL LOGIC (FIXED) ====================
+function openTOTRModal(containerId) {
+    const modal = document.getElementById(`modal-totr-${containerId}`);
     if (modal) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         lucide.createIcons();
-        SFX.play('click');
-        SFX.vibrate(15);
+        if(SFX) { SFX.play('click'); SFX.vibrate(15); }
     }
 }
 
-function closeTOTRModal() {
-    const modal = document.getElementById('modal-totr-round');
+function closeTOTRModal(containerId) {
+    const modal = document.getElementById(`modal-totr-${containerId}`);
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
-        SFX.play('click');
+        if(SFX) { SFX.play('click'); }
     }
 }
 
 function selectTOTRRound(round, containerId) {
     selectedTOTRRound = round;
-    closeTOTRModal();
+    closeTOTRModal(containerId);
     
     setTimeout(() => {
         renderTOTR(containerId);
@@ -5630,4 +6041,122 @@ async function forceAutoLineup(matchId) {
             notify('Failed to apply Auto-Lineup', 'x-circle');
         }
     });
+}
+// ==================== AUTO PARSE MATCH ENGINE ====================
+function autoParseMatchText() {
+    const text = document.getElementById('auto-parse-text').value;
+    if (!text) return notify('Please paste the match text first!', 'alert-circle');
+
+    const m = state.matches.find(x => x.id === activeMatchId);
+    if (!m) return;
+
+    const lines = text.split('\n');
+    let parsedMatchups = [];
+    let parsedMvpName = null;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+
+        // Extract MVP Name
+        if (line.match(/🄼🄰🄽\s*🄾🄵\s*🅃🄷🄴\s*🄼🄰🅃🄲🄷/i) || line.toLowerCase().includes('man of the match')) {
+            const parts = line.split(':');
+            if (parts.length > 1) {
+                parsedMvpName = cleanPlayerName(parts[1]);
+            }
+            continue;
+        }
+
+        // Extract 1v1 Matchups
+        if (line.includes('🆚') || line.toLowerCase().includes(' vs ')) {
+            const separator = line.includes('🆚') ? '🆚' : (line.toLowerCase().includes(' vs ') ? / vs /i : null);
+            if (!separator) continue;
+
+            const parts = line.split(separator);
+            if (parts.length < 2) continue;
+
+            const leftPart = parts[0].trim();
+            const rightPart = parts[1].trim();
+
+            // Regex to separate name and score dynamically
+            const leftMatch = leftPart.match(/(.*?)\s+(\d+)\s*$/);
+            const rightMatch = rightPart.match(/^\s*(\d+)\s+(.*)/);
+
+            if (leftMatch && rightMatch) {
+                const name1 = cleanPlayerName(leftMatch[1]);
+                const score1 = parseInt(leftMatch[2]);
+                
+                const score2 = parseInt(rightMatch[1]);
+                const name2 = cleanPlayerName(rightMatch[2]);
+
+                if (name1 && name2) {
+                    parsedMatchups.push({ name1, score1, name2, score2 });
+                }
+            }
+        }
+    }
+
+    if (parsedMatchups.length === 0) {
+        return notify('No valid matchups found in the text!', 'x-circle');
+    }
+
+    let newMatchups = [];
+
+    // Verify Players and Build New Matchups Array
+    for (let mData of parsedMatchups) {
+        // Strict Database Search
+        const p1 = state.players.find(p => p.name.toLowerCase() === mData.name1.toLowerCase());
+        if (!p1) return notify(`Error: Player "${mData.name1}" not found in database!`, 'x-circle');
+        
+        const p2 = state.players.find(p => p.name.toLowerCase() === mData.name2.toLowerCase());
+        if (!p2) return notify(`Error: Player "${mData.name2}" not found in database!`, 'x-circle');
+
+        let team1Player, team2Player, score1, score2;
+
+        // Check Team Affiliation securely to align scores with Team 1 & Team 2
+        if (p1.teamId === m.team1Id && p2.teamId === m.team2Id) {
+            team1Player = p1; team2Player = p2;
+            score1 = mData.score1; score2 = mData.score2;
+        } else if (p1.teamId === m.team2Id && p2.teamId === m.team1Id) {
+            team1Player = p2; team2Player = p1;
+            score1 = mData.score2; score2 = mData.score1;
+        } else {
+            return notify(`Error: Team mismatch for players "${p1.name}" & "${p2.name}".`, 'alert-circle');
+        }
+
+        // Push clean data without SUB/SWAP tags
+        newMatchups.push({
+            p1Id: team1Player.id,
+            p2Id: team2Player.id,
+            score1: score1,
+            score2: score2,
+            tag1: '', 
+            tag2: ''  
+        });
+    }
+
+    // Process MVP securely
+    if (parsedMvpName) {
+        const mvpP = state.players.find(p => p.name.toLowerCase() === parsedMvpName.toLowerCase());
+        if (mvpP) {
+            m.mvpId = mvpP.id;
+        } else {
+            return notify(`Warning: MVP Player "${parsedMvpName}" not found in database!`, 'alert-circle');
+        }
+    }
+
+    // Apply the newly structured matchups to the local memory state
+    m.matchups = newMatchups;
+
+    // Re-trigger the modal to visibly refresh the UI with the injected data
+    openMatchResultsModal(activeMatchId);
+    
+    notify('Auto Parse Successful! Review inputs and click Save.', 'check-circle');
+}
+
+// Deep Cleaning Function to strip Emojis, Numbers, and Bracket Tags
+function cleanPlayerName(rawStr) {
+    let str = rawStr.replace(/\[.*?\]|\(.*?\)/g, ''); // Deletes [SUB], (SWAP), etc.
+    str = str.replace(/[@👑1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣0️⃣]/g, ''); // Deletes emojis & bullets
+    return str.trim().replace(/\s+/g, ' '); // Trims white spaces
 }
