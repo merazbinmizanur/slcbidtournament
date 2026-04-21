@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.2.7"; // নতুন ভার্সন
+const CURRENT_APP_VERSION = "1.2.8"; // নতুন ভার্সন
 
 function checkAppVersion() {
     try {
