@@ -1,4 +1,4 @@
-const CURRENT_APP_VERSION = "1.2.7"; // নতুন ভার্সন
+const CURRENT_APP_VERSION = "1.2.8"; // নতুন ভার্সন
 
 function checkAppVersion() {
     try {
@@ -1603,7 +1603,7 @@ function renderStandings(containerId) {
     if (!container) return;
 
     const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
-    const completedMatches = state.matches.filter(m => m.status === 'completed');
+    const completedMatches = state.matches.filter(m => m.status === 'completed' && (!m.round || m.round.toLowerCase().includes('group')));
 
     // Build standings
     const table = {};
@@ -2301,13 +2301,11 @@ async function saveTeamMatchResults() {
         mu.score1 = parseInt(document.getElementById(`sc1-${i}`).value) || 0;
         mu.score2 = parseInt(document.getElementById(`sc2-${i}`).value) || 0;
         
-        // 1v1 ম্যাচের গোল অনুযায়ী মিনি-পয়েন্ট যোগ হচ্ছে
         if (mu.score1 > mu.score2) mainPts1 += 3;
         else if (mu.score2 > mu.score1) mainPts2 += 3;
         else if (mu.score1 === mu.score2) { mainPts1 += 1; mainPts2 += 1; }
     });
     
-    // আগের ৩, ০, ১ করে দেওয়ার অংশটি বাদ দিয়ে, সরাসরি মোট মিনি-পয়েন্ট সেট করে দেওয়া হলো
     let mainScore1 = mainPts1;
     let mainScore2 = mainPts2;
     
@@ -2316,14 +2314,19 @@ async function saveTeamMatchResults() {
     try {
         await db.collection('matches').doc(activeMatchId).update({
             matchups: newMatchups,
-            mainScore1: mainScore1, // ডেটাবেসে সরাসরি মিনি-পয়েন্ট সেভ হবে
-            mainScore2: mainScore2, // ডেটাবেসে সরাসরি মিনি-পয়েন্ট সেভ হবে
+            mainScore1: mainScore1,
+            mainScore2: mainScore2,
             mvpId: mvpId,
             status: 'completed'
         });
+        
+        await processPlayoffProgression(activeMatchId, mainScore1, mainScore2);
+        
         closeModal('modal-generic');
         notify('Results & Player Stats Saved!', 'check-circle');
-    } catch(e) { notify('Save failed', 'x-circle'); }
+    } catch(e) { 
+        notify('Save failed', 'x-circle'); 
+    }
 }
 
 // ==================== BIDDING (VIEWER) ====================
@@ -4678,20 +4681,44 @@ function openAllStatsModal(type) {
 
 // টগল বাটন কন্ট্রোল করার ফাংশন
 function toggleView(tabPrefix, view) {
-    const isPlayer = tabPrefix === 'p';
-    const mainThemeColor = isPlayer ? 'bg-emerald-600' : 'bg-blue-600';
+    const mainThemeColor = tabPrefix === 'p' ? 'bg-emerald-600' : 'bg-blue-600';
     
-    document.getElementById(`${tabPrefix}-view-standings`).classList.toggle('hidden', view === 'stats');
-    document.getElementById(`${tabPrefix}-view-stats`).classList.toggle('hidden', view === 'standings');
+    document.getElementById(`${tabPrefix}-view-standings`).classList.toggle('hidden', view !== 'standings');
+    document.getElementById(`${tabPrefix}-view-playoffs`).classList.toggle('hidden', view !== 'playoffs');
+    document.getElementById(`${tabPrefix}-view-stats`).classList.toggle('hidden', view !== 'stats');
     
     const stdBtn = document.getElementById(`btn-toggle-${tabPrefix}-std`);
+    const playBtn = document.getElementById(`btn-toggle-${tabPrefix}-playoffs`);
     const staBtn = document.getElementById(`btn-toggle-${tabPrefix}-sta`);
     
-    stdBtn.className = view === 'standings' ? `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg ${mainThemeColor} text-white transition-all tracking-widest` : `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg text-slate-500 hover:text-white transition-all tracking-widest`;
+    const activeClass = `flex-1 py-2.5 text-[9px] font-black uppercase rounded-lg ${mainThemeColor} text-white transition-all tracking-widest`;
+    const inactiveClass = `flex-1 py-2.5 text-[9px] font-black uppercase rounded-lg text-slate-500 hover:text-white transition-all tracking-widest`;
     
-    staBtn.className = view === 'stats' ? `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg ${mainThemeColor} text-white transition-all tracking-widest` : `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg text-slate-500 hover:text-white transition-all tracking-widest`;
+    if (stdBtn) stdBtn.className = view === 'standings' ? activeClass : inactiveClass;
+    if (playBtn) playBtn.className = view === 'playoffs' ? activeClass : inactiveClass;
+    if (staBtn) staBtn.className = view === 'stats' ? activeClass : inactiveClass;
     
     if (view === 'stats') renderPlayerStats(`${tabPrefix}-stats-container`);
+    if (view === 'playoffs') renderPlayoffsRoadmap(`${tabPrefix}-playoffs-container`, tabPrefix);
+}
+
+function toggleMatchView(tabPrefix, view) {
+    const mainThemeColor = tabPrefix === 'm' ? 'bg-blue-600' : 'bg-gold-600';
+    const textColor = tabPrefix === 'a' && view === 'group' ? 'text-slate-900' : 'text-white';
+    
+    document.getElementById(`${tabPrefix}-view-group`).classList.toggle('hidden', view !== 'group');
+    document.getElementById(`${tabPrefix}-view-playoffs`).classList.toggle('hidden', view !== 'playoffs');
+    
+    const grpBtn = document.getElementById(`btn-toggle-${tabPrefix}-group`);
+    const playBtn = document.getElementById(`btn-toggle-${tabPrefix}-playoffs`);
+    
+    const activeClass = `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg ${mainThemeColor} ${textColor} transition-all tracking-widest`;
+    const inactiveClass = `flex-1 py-2.5 text-[10px] font-black uppercase rounded-lg text-slate-500 hover:text-white transition-all tracking-widest`;
+    
+    if (grpBtn) grpBtn.className = view === 'group' ? activeClass : inactiveClass;
+    if (playBtn) playBtn.className = view === 'playoffs' ? activeClass : inactiveClass;
+    
+    if (view === 'playoffs') renderPlayoffsRoadmap(`${tabPrefix}-playoffs-container`, tabPrefix);
 }
 
 // ==================== BIDDING PHASE VISIBILITY LOGIC ====================
@@ -4728,7 +4755,6 @@ function applyBiddingVisibility() {
         }
     }
 }
-
 // ==================== PREMIUM LINEUP PREVIEW (FOR SCREENSHOTS) ====================
 function openLineupPreview(matchId) {
     const m = state.matches.find(x => x.id === matchId);
@@ -4971,7 +4997,8 @@ function openMatchResultPreview(matchId) {
             <div class="flex flex-col items-center w-[35%] text-center relative z-10">
                 <div class="relative w-16 h-16 mb-2">
                     <div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-xl"></div>
-                    ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'rounded-2xl border border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] object-contain bg-slate-900 relative z-10')}
+                    ${getAvatarUI({name: t1?.teamName, avatar: t1?.logo}, 'w-full', 'h-full', 'round
+ed-2xl border border-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] object-contain bg-slate-900 relative z-10')}
                 </div>
                 <div class="text-[11px] font-black text-white uppercase tracking-wider leading-tight drop-shadow-md">${t1?.teamName || 'TBD'}</div>
                 ${m.isAutoLineup1 ? `<div class="text-[6px] text-rose-400 font-bold uppercase mt-1 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">Auto Lineup</div>` : ''}
@@ -6159,4 +6186,191 @@ function cleanPlayerName(rawStr) {
     let str = rawStr.replace(/\[.*?\]|\(.*?\)/g, ''); // Deletes [SUB], (SWAP), etc.
     str = str.replace(/[@👑1️⃣2️⃣3️⃣4️⃣5️⃣6️⃣7️⃣8️⃣9️⃣0️⃣]/g, ''); // Deletes emojis & bullets
     return str.trim().replace(/\s+/g, ' '); // Trims white spaces
+}
+
+function getTop4Teams() {
+    const approvedManagers = state.managers.filter(m => m.paymentStatus === 'approved');
+    const table = {};
+    approvedManagers.forEach(m => { table[m.id] = { id: m.id, pts: 0, gf: 0, ga: 0 }; });
+
+    const completedMatches = state.matches.filter(m => m.status === 'completed' && (!m.round || m.round.toLowerCase().includes('group')));
+    completedMatches.forEach(m => {
+        const t1id = m.team1Id; const t2id = m.team2Id;
+        if (!table[t1id] || !table[t2id]) return;
+
+        const t1Pts = m.mainScore1 ?? 0;
+        const t2Pts = m.mainScore2 ?? 0;
+
+        let t1Goals = 0, t2Goals = 0;
+        if (m.matchups) {
+            m.matchups.forEach(mu => {
+                t1Goals += (mu.score1 || 0); t2Goals += (mu.score2 || 0);
+            });
+        }
+        table[t1id].gf += t1Goals; table[t1id].ga += t2Goals;
+        table[t2id].gf += t2Goals; table[t2id].ga += t1Goals;
+
+        if (t1Pts > t2Pts) { table[t1id].pts += 3; }
+        else if (t2Pts > t1Pts) { table[t2id].pts += 3; }
+        else { table[t1id].pts += 1; table[t2id].pts += 1; }
+    });
+
+    return Object.values(table).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf).slice(0, 4);
+}
+
+async function generatePlayoffs() {
+    const existingPlayoffs = state.matches.filter(m => m.round && (m.round === 'QUALIFIER 1' || m.round === 'ELIMINATOR' || m.round === 'QUALIFIER 2' || m.round === 'FINAL'));
+    if (existingPlayoffs.length > 0) return notify('Playoffs already generated!', 'x-circle');
+
+    const top4 = getTop4Teams();
+    if (top4.length < 4) return notify('Need at least 4 teams with points to generate playoffs!', 'alert-circle');
+
+    const t1 = top4[0].id;
+    const t2 = top4[1].id;
+    const t3 = top4[2].id;
+    const t4 = top4[3].id;
+
+    const playoffMatches =[
+        { matchNumber: 101, team1Id: t1, team2Id: t2, round: 'QUALIFIER 1', status: 'pending_lineup', isPublic: false, lineup1: [], lineup2: [], matchups: [], subbedOut1: [], subbedOut2:[], swapUsed1: false, swapUsed2: false, isTeamMatch: true },
+        { matchNumber: 102, team1Id: t3, team2Id: t4, round: 'ELIMINATOR', status: 'pending_lineup', isPublic: false, lineup1: [], lineup2: [], matchups: [], subbedOut1:[], subbedOut2:[], swapUsed1: false, swapUsed2: false, isTeamMatch: true },
+        { matchNumber: 103, team1Id: null, team2Id: null, round: 'QUALIFIER 2', status: 'pending_lineup', isPublic: false, lineup1:[], lineup2: [], matchups: [], subbedOut1: [], subbedOut2:[], swapUsed1: false, swapUsed2: false, isTeamMatch: true },
+        { matchNumber: 104, team1Id: null, team2Id: null, round: 'FINAL', status: 'pending_lineup', isPublic: false, lineup1: [], lineup2: [], matchups: [], subbedOut1:[], subbedOut2:[], swapUsed1: false, swapUsed2: false, isTeamMatch: true }
+    ];
+
+    const batch = db.batch();
+    playoffMatches.forEach(m => {
+        const ref = db.collection('matches').doc();
+        batch.set(ref, { ...m, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    });
+
+    try {
+        await batch.commit();
+        notify('Playoffs Bracket Generated Successfully!', 'check-circle');
+    } catch (e) {
+        notify('Failed to generate playoffs', 'x-circle');
+    }
+}
+
+async function processPlayoffProgression(matchId, s1, s2) {
+    const m = state.matches.find(x => x.id === matchId);
+    if (!m || !m.round) return;
+
+    let winnerId = null;
+    let loserId = null;
+
+    if (s1 > s2) { winnerId = m.team1Id; loserId = m.team2Id; }
+    else if (s2 > s1) { winnerId = m.team2Id; loserId = m.team1Id; }
+    else { return; } 
+
+    const q2Match = state.matches.find(x => x.round === 'QUALIFIER 2');
+    const finalMatch = state.matches.find(x => x.round === 'FINAL');
+
+    try {
+        if (m.round === 'QUALIFIER 1') {
+            if (finalMatch) await db.collection('matches').doc(finalMatch.id).update({ team1Id: winnerId });
+            if (q2Match) await db.collection('matches').doc(q2Match.id).update({ team1Id: loserId });
+        } else if (m.round === 'ELIMINATOR') {
+            if (q2Match) await db.collection('matches').doc(q2Match.id).update({ team2Id: winnerId });
+        } else if (m.round === 'QUALIFIER 2') {
+            if (finalMatch) await db.collection('matches').doc(finalMatch.id).update({ team2Id: winnerId });
+        }
+    } catch (e) {
+        console.error("Progression error", e);
+    }
+}
+
+function renderPlayoffsRoadmap(containerId, viewType) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const q1 = state.matches.find(m => m.round === 'QUALIFIER 1');
+    const elim = state.matches.find(m => m.round === 'ELIMINATOR');
+    const q2 = state.matches.find(m => m.round === 'QUALIFIER 2');
+    const final = state.matches.find(m => m.round === 'FINAL');
+
+    if (!q1 && !elim && !q2 && !final) {
+        container.innerHTML = `<div class="text-center py-16"><i data-lucide="git-merge" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i><p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Playoffs Not Generated Yet</p></div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    const buildTeamRow = (match, teamId, score, isTeam1) => {
+        const t = state.managers.find(mg => mg.id === teamId);
+        const name = t ? t.teamName : (teamId ? 'Unknown' : 'TBD');
+        const logoUI = t ? getAvatarUI({name: t.teamName, avatar: t.logo}, 'w-6', 'h-6', 'rounded-md object-contain bg-slate-800') : `<div class="w-6 h-6 rounded-md bg-slate-800 border border-white/10 flex items-center justify-center text-[10px] text-slate-500 font-black">?</div>`;
+        
+        let rowClass = 'playoff-team-row';
+        let scoreUI = '';
+        
+        if (match && match.status === 'completed') {
+            const oppScore = isTeam1 ? match.mainScore2 : match.mainScore1;
+            const myScore = score || 0;
+            if (myScore > oppScore) rowClass += ' winner';
+            else if (myScore < oppScore) rowClass += ' loser';
+            scoreUI = `<span class="text-[12px] font-black ${myScore > oppScore ? 'text-emerald-400' : 'text-white'}">${myScore}</span>`;
+        }
+
+        return `
+        <div class="${rowClass}">
+            <div class="flex items-center gap-2">
+                ${logoUI}
+                <span class="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">${name}</span>
+            </div>
+            ${scoreUI}
+        </div>`;
+    };
+
+    const buildCard = (title, match, typeClass, icon) => {
+        if (!match) return ``;
+        let actionBtn = '';
+        
+        if (viewType === 'a') {
+            if (match.status === 'pending_lineup' && match.team1Id && match.team2Id) {
+                if (match.lineup1.length > 0 && match.lineup2.length > 0) {
+                    actionBtn = `<button onclick="draw1v1Matchups('${match.id}')" class="mt-2 w-full py-1.5 bg-rose-600 text-white text-[8px] font-black rounded-lg uppercase">Draw 1VS1</button>`;
+                } else {
+                    actionBtn = `<button onclick="forceAutoLineup('${match.id}')" class="mt-2 w-full py-1.5 bg-slate-800 text-rose-400 border border-rose-500/30 text-[8px] font-black rounded-lg uppercase">Auto Fill</button>`;
+                }
+            } else if (match.status === 'ongoing') {
+                actionBtn = `<button onclick="openMatchResultsModal('${match.id}')" class="mt-2 w-full py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[8px] font-black rounded-lg uppercase">Results</button>`;
+            }
+        } else if (viewType === 'm' && match.team1Id && match.team2Id && match.status !== 'completed') {
+            const isMyMatch = match.team1Id === state.currentUser?.id || match.team2Id === state.currentUser?.id;
+            if (isMyMatch) {
+                if (match.status === 'pending_lineup') {
+                    const myLineup = match.team1Id === state.currentUser?.id ? match.lineup1 : match.lineup2;
+                    if (!myLineup || myLineup.length === 0) {
+                        actionBtn = `<button onclick="openLineupSubmission('${match.id}')" class="mt-2 w-full py-1.5 bg-blue-600 text-white text-[8px] font-black rounded-lg uppercase">Submit Lineup</button>`;
+                    }
+                } else if (match.status === 'ongoing') {
+                    actionBtn = `<button onclick="openManageMatch('${match.id}')" class="mt-2 w-full py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[8px] font-black rounded-lg uppercase">Manage Match</button>`;
+                }
+            }
+        }
+
+        return `
+        <div class="playoff-card ${typeClass}">
+            <div class="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                <span class="text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${title}</span>
+                ${match.status === 'completed' ? `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>` : `<i data-lucide="clock" class="w-3.5 h-3.5 text-gold-400"></i>`}
+            </div>
+            ${buildTeamRow(match, match.team1Id, match.mainScore1, true)}
+            ${buildTeamRow(match, match.team2Id, match.mainScore2, false)}
+            ${actionBtn}
+        </div>`;
+    };
+
+    let html = `
+    <div class="flex flex-col gap-1 items-center pb-8 w-full max-w-[340px] mx-auto relative">
+        <div class="w-full relative z-10">${buildCard('Qualifier 1', q1, 'q1', 'star')}</div>
+        <div class="bracket-connector ${q1?.status === 'completed' ? 'active' : ''}"></div>
+        <div class="w-full relative z-10">${buildCard('Eliminator', elim, 'elim', 'skull')}</div>
+        <div class="bracket-connector ${elim?.status === 'completed' || q1?.status === 'completed' ? 'active' : ''}"></div>
+        <div class="w-full relative z-10">${buildCard('Qualifier 2', q2, 'q2', 'shield-alert')}</div>
+        <div class="bracket-connector ${q2?.status === 'completed' ? 'active' : ''}" style="height: 30px;"></div>
+        <div class="w-full relative z-10 transform scale-[1.05]">${buildCard('Grand Final', final, 'final', 'trophy')}</div>
+    </div>`;
+
+    container.innerHTML = html;
+    lucide.createIcons();
 }
