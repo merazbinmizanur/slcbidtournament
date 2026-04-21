@@ -507,3 +507,42 @@ body.screenshot-mode .totr-watermark {
     display: flex;
     animation: fadeInUp 0.5s ease forwards;
 }
+
+.playoff-card {
+    background: linear-gradient(145deg, rgba(15,23,42,0.8) 0%, rgba(2,6,23,0.9) 100%);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 1.2rem;
+    padding: 12px;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.playoff-card.q1 { border-color: rgba(168, 85, 247, 0.4); box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+.playoff-card.elim { border-color: rgba(244, 63, 94, 0.4); box-shadow: 0 0 20px rgba(244, 63, 94, 0.15); }
+.playoff-card.q2 { border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+.playoff-card.final { border-color: rgba(245, 158, 11, 0.6); box-shadow: 0 0 30px rgba(245, 158, 11, 0.25); }
+
+.playoff-team-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 0.8rem;
+    margin-bottom: 6px;
+    border: 1px solid rgba(255,255,255,0.03);
+}
+.playoff-team-row:last-child { margin-bottom: 0; }
+.playoff-team-row.winner { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }
+.playoff-team-row.loser { opacity: 0.5; filter: grayscale(100%); }
+
+.bracket-connector {
+    width: 2px;
+    height: 20px;
+    background: rgba(255,255,255,0.1);
+    margin: 0 auto;
+}
+.bracket-connector.active {
+    background: #f59e0b;
+    box-shadow: 0 0 10px #f59e0b;
+}
